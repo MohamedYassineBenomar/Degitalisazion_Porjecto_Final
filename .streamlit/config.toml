@@ -1,0 +1,14 @@
+# HotelMar — Streamlit theme.
+# Locked to light mode so the brand colors render consistently
+# regardless of the visitor's OS theme preference.
+
+[theme]
+base               = "light"
+primaryColor       = "#0a3d62"   # deep navy — buttons, accents
+backgroundColor    = "#ffffff"
+secondaryBackgroundColor = "#d9eef7"   # soft sea-sky for sidebar
+textColor          = "#1c2b3a"
+font               = "sans serif"
+
+[browser]
+gatherUsageStats   = false
