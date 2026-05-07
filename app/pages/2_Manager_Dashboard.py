@@ -27,6 +27,7 @@ from utils import (  # noqa: E402
     DEMO_DATE,
     TOTAL_ROOMS,
     compute_kpis,
+    compute_static_baseline_kpis,
     get_all_bookings,
     historical_monthly_avg,
     predict_prices,
@@ -97,6 +98,87 @@ st.markdown(
         .hm-priceCard .delta-down { color: var(--hm-down); font-weight: 600; }
         .hm-priceCard .sub { color:#5b6b78; font-size:0.9rem; margin:0; }
         .hm-section { margin-top: 28px; }
+
+        /* Chart legend explanation card. */
+        .hm-chartKey {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.06);
+            border-left: 4px solid var(--hm-sea);
+            margin-top: 12px;
+        }
+        .hm-chartKey ul { margin: 6px 0 0 0; padding-left: 18px; }
+        .hm-chartKey li { margin-bottom: 6px; color: #1c2b3a; }
+        .hm-chartKey li b { color: var(--hm-navy); }
+        .hm-swatch {
+            display: inline-block; width: 22px; height: 4px;
+            vertical-align: middle; border-radius: 2px;
+            margin-right: 8px; margin-bottom: 2px;
+        }
+        .hm-swatch.dashed {
+            height: 0; border-top: 3px dashed currentColor;
+            background: transparent;
+        }
+        .hm-swatch.band {
+            height: 10px; opacity: 0.35;
+        }
+
+        /* Comparison KPI table — Without AI vs With AI. */
+        .hm-compare {
+            background: white;
+            padding: 4px 0;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px rgba(10, 61, 98, 0.08);
+            overflow: hidden;
+        }
+        .hm-compare table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.98rem;
+        }
+        .hm-compare th {
+            text-align: left;
+            padding: 14px 18px;
+            background: var(--hm-sky);
+            color: var(--hm-navy);
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: normal;          /* let labels wrap */
+            vertical-align: bottom;
+            border-bottom: 2px solid var(--hm-sea);
+        }
+        .hm-compare th small {
+            display: block;
+            font-weight: 400;
+            color: #5b6b78;
+            font-size: 0.78rem;
+            margin-top: 2px;
+        }
+        .hm-compare td {
+            padding: 16px 18px;
+            border-bottom: 1px solid #eef3f7;
+            vertical-align: middle;
+            white-space: normal;          /* never truncate values */
+            word-break: keep-all;
+        }
+        .hm-compare tr:last-child td { border-bottom: none; }
+        .hm-compare .metric-name {
+            font-weight: 600;
+            color: var(--hm-navy);
+            white-space: normal;
+        }
+        .hm-compare .static-cell {
+            color: #5b6b78;
+            font-variant-numeric: tabular-nums;
+        }
+        .hm-compare .ai-cell {
+            color: var(--hm-navy);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        .hm-compare .lift-up   { color: var(--hm-up);   font-weight: 700; }
+        .hm-compare .lift-flat { color: #95a5a6;        font-weight: 400; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -222,10 +304,10 @@ with c2:
 
 
 # -----------------------------------------------------------------------------
-# Section 2 — 90-Day Price Forecast
+# Section 2 — 90-Day Price Forecast (with vs without AI)
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("90-day price forecast")
+st.subheader("90-day price forecast — without AI vs with AI")
 
 history = pd.read_csv(HISTORY_CSV, parse_dates=["ds"])
 forecast = pd.read_csv(FORECAST_CSV, parse_dates=["ds"])
@@ -233,8 +315,22 @@ forecast = pd.read_csv(FORECAST_CSV, parse_dates=["ds"])
 last_train = history["ds"].max()
 forecast_only = forecast[forecast["ds"] > last_train]
 
+# Static-rulebook baseline: one flat rate per calendar month, set to the
+# historical average for that month. Computed for every day on the chart
+# (history + forecast) so the contrast is visible across the whole timeline.
+all_dates = (
+    pd.concat([history["ds"], forecast_only["ds"]])
+    .drop_duplicates()
+    .sort_values()
+    .reset_index(drop=True)
+)
+static_rulebook = all_dates.dt.month.map(
+    {m: historical_monthly_avg(m) for m in range(1, 13)}
+)
+
 fig = go.Figure()
-# Confidence band on the forecast portion.
+
+# 1. 80% confidence band on the forecast (drawn first, sits in the back).
 fig.add_trace(go.Scatter(
     x=list(forecast_only["ds"]) + list(forecast_only["ds"][::-1]),
     y=list(forecast_only["yhat_upper"]) + list(forecast_only["yhat_lower"][::-1]),
@@ -245,54 +341,175 @@ fig.add_trace(go.Scatter(
     name="80% interval",
     showlegend=True,
 ))
-# Historical actuals.
+
+# 2. Static rulebook baseline (the "without AI" line — flat per month).
+fig.add_trace(go.Scatter(
+    x=all_dates, y=static_rulebook,
+    mode="lines",
+    line=dict(color="#7f8c8d", width=1.6, dash="dash"),
+    name="Static rulebook (without AI)",
+))
+
+# 3. Historical actuals (what really happened).
 fig.add_trace(go.Scatter(
     x=history["ds"], y=history["y"],
     mode="lines",
     line=dict(color="#3c91b3", width=2),
     name="Historical (actual)",
 ))
-# Forecast.
+
+# 4. AI forecast (the "with AI" line — per-day prediction).
 fig.add_trace(go.Scatter(
     x=forecast_only["ds"], y=forecast_only["yhat"],
     mode="lines",
     line=dict(color="#e67e22", width=2.5),
-    name="Forecast (AI)",
+    name="AI forecast (with AI)",
 ))
+
 fig.update_layout(
-    height=420,
+    height=460,
     margin=dict(l=20, r=20, t=20, b=20),
     plot_bgcolor="white",
     paper_bgcolor="white",
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    # Legend on the LEFT, vertical, with a soft white card so it stays
+    # readable on top of the chart background.
+    legend=dict(
+        orientation="v",
+        yanchor="top", y=0.99,
+        xanchor="left", x=0.01,
+        bgcolor="rgba(255,255,255,0.92)",
+        bordercolor="#e5edf2",
+        borderwidth=1,
+        font=dict(size=12),
+    ),
     xaxis=dict(title="Date", gridcolor="#e9eef3"),
     yaxis=dict(title="Price (EUR)", gridcolor="#e9eef3"),
     hovermode="x unified",
 )
 st.plotly_chart(fig, use_container_width=True)
-st.caption(
-    "Blue line: real ADR observed in the historical training window. "
-    "Orange line: 90-day forward AI forecast. Shaded band: 80% prediction interval."
+
+# What-you're-seeing card — written in plain language so anyone can read it.
+st.markdown(
+    """
+    <div class="hm-chartKey">
+        <b>What you're seeing</b>
+        <ul>
+            <li>
+                <span class="hm-swatch" style="background:#3c91b3;"></span>
+                <b>Historical (actual)</b> — the real average price per night
+                for every day from July 2015 to August 2017. This is what
+                guests actually paid.
+            </li>
+            <li>
+                <span class="hm-swatch dashed" style="color:#7f8c8d;"></span>
+                <b>Static rulebook (without AI)</b> — what HotelMar charged
+                under the old approach: <i>one flat rate per calendar month</i>,
+                set to the historical average for that month. Notice it stays
+                flat for ~30 days at a time, then jumps at the next month —
+                it has no idea about Friday/Saturday peaks or weekday dips.
+            </li>
+            <li>
+                <span class="hm-swatch" style="background:#e67e22;"></span>
+                <b>AI forecast (with AI)</b> — Prophet's per-day prediction
+                for the next 90 days. It captures the same daily zigzag as
+                the real historical data — the Friday/Saturday weekend
+                premium, the slow trend, the seasonal cycle.
+            </li>
+            <li>
+                <span class="hm-swatch band" style="background:#e67e22;"></span>
+                <b>80% confidence interval</b> — the AI's uncertainty: there's
+                an 80% chance the true price falls inside the band.
+                <i>Wider band = the model is less sure</i> (e.g. far into the
+                future, or in volatile periods); the manager should treat
+                wide-band days as a hint to apply judgment.
+            </li>
+        </ul>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
 # -----------------------------------------------------------------------------
-# Section 3 — KPIs
+# Section 3 — KPIs (without AI vs with AI, side by side)
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("Key performance indicators")
-
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("Total bookings", f"{kpis['total_bookings']:,}")
-k2.metric("Total revenue", f"€{kpis['total_revenue']:,.2f}")
-k3.metric("Avg price / night", f"€{kpis['avg_price']:,.2f}")
-k4.metric("Avg occupancy", f"{kpis['avg_occupancy']*100:.1f}%",
-          help=f"Room-nights sold ÷ ({TOTAL_ROOMS} rooms × days in booking window).")
+st.subheader("Key performance indicators — without AI vs with AI")
 
 if bookings_df.empty:
     st.info(
         "No bookings yet. Use the **Book Your Stay** page to add some, "
         "then come back and click **↻ Refresh Data** in the sidebar."
+    )
+else:
+    static_kpis = compute_static_baseline_kpis(bookings_df)
+
+    def lift(static_v: float, ai_v: float) -> tuple[str, str]:
+        """Return (lift label, css class). Tiny diffs render as flat."""
+        if static_v <= 0:
+            return ("—", "lift-flat")
+        delta_pct = (ai_v - static_v) / static_v * 100
+        if abs(delta_pct) < 0.5:
+            return ("—", "lift-flat")
+        arrow = "▲" if delta_pct > 0 else "▼"
+        cls = "lift-up" if delta_pct > 0 else "lift-down"
+        return (f"{arrow} {abs(delta_pct):.1f}%", cls)
+
+    rev_lift, rev_cls = lift(static_kpis["total_revenue"], kpis["total_revenue"])
+    price_lift, price_cls = lift(static_kpis["avg_price"], kpis["avg_price"])
+
+    st.markdown(
+        f"""
+        <div class="hm-compare">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Without AI<small>static seasonal rulebook<br>(monthly avg per month)</small></th>
+                        <th>With AI<small>this MVP<br>(dynamic per-day pricing)</small></th>
+                        <th>Lift</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="metric-name">Total bookings</td>
+                        <td class="static-cell">{static_kpis['total_bookings']:,}</td>
+                        <td class="ai-cell">{kpis['total_bookings']:,}</td>
+                        <td class="lift-flat">— (demand held constant)</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Total revenue</td>
+                        <td class="static-cell">€{static_kpis['total_revenue']:,.2f}</td>
+                        <td class="ai-cell">€{kpis['total_revenue']:,.2f}</td>
+                        <td class="{rev_cls}">{rev_lift}</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Avg price&nbsp;/&nbsp;night</td>
+                        <td class="static-cell">€{static_kpis['avg_price']:,.2f}</td>
+                        <td class="ai-cell">€{kpis['avg_price']:,.2f}</td>
+                        <td class="{price_cls}">{price_lift}</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Avg occupancy</td>
+                        <td class="static-cell">{static_kpis['avg_occupancy']*100:.1f}%</td>
+                        <td class="ai-cell">{kpis['avg_occupancy']*100:.1f}%</td>
+                        <td class="lift-flat">— (same room-nights)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.caption(
+        "**Reading the comparison.** The 'Without AI' column re-prices every "
+        "one of the demo bookings using the historical monthly average for "
+        f"each stay night × the room multiplier — i.e. what the same {kpis['total_bookings']:,} "
+        "reservations would have brought in if HotelMar had stayed on the old "
+        "flat-monthly-rate rulebook. Demand is held constant on purpose so "
+        "the comparison isolates the pricing effect from any volume change. "
+        "The 'Lift' column shows the percentage gain from switching to AI."
     )
 
 

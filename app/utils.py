@@ -389,6 +389,55 @@ def historical_monthly_avg(month: int) -> float:
     return float(df[df["ds"].dt.month == month]["y"].mean())
 
 
+def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:
+    """Re-price every booking under the OLD static seasonal rulebook
+    and return the same KPI shape as compute_kpis().
+
+    The rulebook charges one flat rate per calendar month — the
+    historical average ADR for that month. Demand is held constant
+    (same 2,494 reservations), so this is a counterfactual: 'what
+    would these same bookings have brought in if HotelMar had stayed
+    on the old rulebook instead of switching to AI?'
+    """
+    if bookings_df.empty:
+        return {
+            "total_bookings": 0,
+            "total_revenue": 0.0,
+            "avg_price": 0.0,
+            "avg_occupancy": 0.0,
+        }
+
+    monthly = {m: historical_monthly_avg(m) for m in range(1, 13)}
+
+    # Expand each booking to one row per stay-night and price it at the
+    # monthly average × room multiplier.
+    nightly_prices = []
+    for _, b in bookings_df.iterrows():
+        multiplier = ROOM_TYPES[b["room_type"]]
+        nights = pd.date_range(
+            b["check_in"], b["check_out"] - pd.Timedelta(days=1), freq="D"
+        )
+        for d in nights:
+            nightly_prices.append(monthly[d.month] * multiplier)
+
+    total_revenue = float(sum(nightly_prices))
+    total_bookings = int(len(bookings_df))
+    room_nights = len(nightly_prices)
+    avg_price = total_revenue / room_nights if room_nights else 0.0
+
+    window_days = max(
+        (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
+    )
+    avg_occupancy = room_nights / (TOTAL_ROOMS * window_days)
+
+    return {
+        "total_bookings": total_bookings,
+        "total_revenue": total_revenue,
+        "avg_price": avg_price,
+        "avg_occupancy": avg_occupancy,
+    }
+
+
 def revenue_per_day(df: pd.DataFrame) -> pd.DataFrame:
     """Spread each booking's total revenue evenly across its stay nights
     and return a DataFrame [date, revenue] aggregated by stay-night."""
