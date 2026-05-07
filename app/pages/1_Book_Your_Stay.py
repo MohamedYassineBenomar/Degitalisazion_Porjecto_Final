@@ -21,6 +21,8 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from utils import (  # noqa: E402  (import after sys.path tweak)
     BASELINE_OCCUPANCY,
+    DEMO_DATE,
+    LAST_FORECAST_DATE,
     ROOM_TYPES,
     apply_occupancy_adjustment,
     booking_reference,
@@ -101,23 +103,30 @@ st.markdown(
 )
 
 # ---------------------------------------------------------------------------
-# Booking inputs
+# Booking inputs.
+# Demo dates are pinned to the model's forecast window so prices stay
+# inside the trained range. In production these would default to today.
 # ---------------------------------------------------------------------------
-today = date.today()
+demo_min = DEMO_DATE
+demo_max = LAST_FORECAST_DATE.date()
+default_in  = DEMO_DATE + timedelta(days=7)   # Fri 22 Sep 2017
+default_out = DEMO_DATE + timedelta(days=10)  # Mon 25 Sep 2017
 
 c1, c2, c3, c4 = st.columns([1, 1, 1.2, 0.8])
 with c1:
     check_in = st.date_input(
         "Check-in",
-        value=today + timedelta(days=14),
-        min_value=today,
+        value=default_in,
+        min_value=demo_min,
+        max_value=demo_max - timedelta(days=1),
         format="DD/MM/YYYY",
     )
 with c2:
     check_out = st.date_input(
         "Check-out",
-        value=today + timedelta(days=17),
-        min_value=today + timedelta(days=1),
+        value=default_out,
+        min_value=demo_min + timedelta(days=1),
+        max_value=demo_max,
         format="DD/MM/YYYY",
     )
 with c3:
@@ -129,6 +138,11 @@ with c3:
     )
 with c4:
     guests = st.number_input("Guests", min_value=1, max_value=4, value=2, step=1)
+
+st.caption(
+    "Demo dates limited to the AI model's forecast window (Sep–Nov 2017). "
+    "Production would accept any future date."
+)
 
 # ---------------------------------------------------------------------------
 # Check Price button

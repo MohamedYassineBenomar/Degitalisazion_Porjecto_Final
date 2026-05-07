@@ -32,6 +32,19 @@ Source: Kaggle "Hotel Booking Demand" dataset (~119k bookings).
 We use only **Resort Hotel** rows and exclude cancellations.
 The price column is `adr` (Average Daily Rate).
 
+## Demo timeline
+
+The AI model is trained on Hotel Booking Demand data
+(**Jul 2015 – Aug 2017**) and forecasts through **Nov 2017**.
+The demo date is fixed at **Sep 15, 2017** to keep all predictions
+inside the trained range. Production would use today's date and
+continuously retrain.
+
+This is why the booking page only accepts dates between Sep 2017 and
+Nov 2017, and why the manager dashboard shows numbers for
+"Friday 15 September 2017" rather than the calendar date you're
+running it on.
+
 ## Project structure
 
 ```

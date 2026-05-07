@@ -21,10 +21,16 @@ import streamlit as st
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = PROJECT_ROOT / "models" / "price_model.pkl"
 DB_PATH = PROJECT_ROOT / "data" / "bookings.db"
+HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 
 # Last day the model has actually seen during training. Anything after
 # this is extrapolation. Hard-coded because the dataset is fixed.
 LAST_TRAIN_DATE = pd.Timestamp("2017-08-31")
+LAST_FORECAST_DATE = pd.Timestamp("2017-11-29")  # 90 days past training
+
+# Fixed demo date inside the model's forecast window.
+# In production this would be datetime.today().
+DEMO_DATE = date(2017, 9, 15)
 
 
 # --- Pricing config --------------------------------------------------------
@@ -216,6 +222,16 @@ def compute_kpis(df: pd.DataFrame) -> dict:
         "avg_price": avg_price,
         "avg_occupancy": avg_occupancy,
     }
+
+
+@st.cache_data(show_spinner=False)
+def historical_monthly_avg(month: int) -> float:
+    """Average historical ADR across every day of the given month (1-12)
+    in the training data. Used as the "old static pricing" baseline on
+    the manager dashboard — more honest than a single flat rate because
+    a real seasonal rulebook varies by month."""
+    df = pd.read_csv(HISTORY_CSV, parse_dates=["ds"])
+    return float(df[df["ds"].dt.month == month]["y"].mean())
 
 
 def revenue_per_day(df: pd.DataFrame) -> pd.DataFrame:

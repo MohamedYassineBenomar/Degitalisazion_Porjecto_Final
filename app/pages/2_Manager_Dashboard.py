@@ -24,10 +24,11 @@ import streamlit as st
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from utils import (  # noqa: E402
-    OLD_STATIC_PRICE,
+    DEMO_DATE,
     TOTAL_ROOMS,
     compute_kpis,
     get_all_bookings,
+    historical_monthly_avg,
     predict_prices,
     revenue_per_day,
 )
@@ -177,14 +178,20 @@ kpis = compute_kpis(bookings_df)
 # Section 1 — Today's Recommended Price
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("Today's recommended price")
+st.subheader(f"AI Recommendation for {DEMO_DATE.strftime('%A %d %B %Y')}")
 
-today = date.today()
-today_pred = predict_prices(today, today + timedelta(days=1))
+# DEMO_DATE is fixed inside the model's forecast window; in production
+# this would be datetime.today().
+today_pred = predict_prices(DEMO_DATE, DEMO_DATE + timedelta(days=1))
 ai_price = float(today_pred["yhat"].iloc[0]) if not today_pred.empty else 0.0
 
-diff_eur = ai_price - OLD_STATIC_PRICE
-diff_pct = (diff_eur / OLD_STATIC_PRICE) * 100.0 if OLD_STATIC_PRICE else 0.0
+# Honest baseline: what HotelMar would have charged under the old
+# rulebook for ANY day in this month (averaged across historical years).
+baseline = historical_monthly_avg(DEMO_DATE.month)
+month_name = DEMO_DATE.strftime("%B")
+
+diff_eur = ai_price - baseline
+diff_pct = (diff_eur / baseline) * 100.0 if baseline else 0.0
 delta_class = "delta-up" if diff_eur >= 0 else "delta-down"
 arrow = "▲" if diff_eur >= 0 else "▼"
 
@@ -193,10 +200,10 @@ with c1:
     st.markdown(
         f"""
         <div class="hm-priceCard">
-            <p class="label">AI suggestion · Standard Sea View · {today.strftime('%A %d %b %Y')}</p>
+            <p class="label">AI suggestion · Standard Sea View · {DEMO_DATE.strftime('%A %d %b %Y')}</p>
             <div class="value">€{ai_price:,.2f}</div>
             <p class="{delta_class}">
-                {arrow} €{abs(diff_eur):,.2f} ({diff_pct:+.1f}%) vs old static price (€{OLD_STATIC_PRICE:.0f})
+                {arrow} €{abs(diff_eur):,.2f} ({diff_pct:+.1f}%) vs historical {month_name} avg (€{baseline:.2f})
             </p>
             <p class="sub">Apply this rate across all available rooms tonight to maximize RevPAR.</p>
         </div>
@@ -204,10 +211,14 @@ with c1:
         unsafe_allow_html=True,
     )
 with c2:
-    st.metric("Old static price", f"€{OLD_STATIC_PRICE:.2f}",
-              help="The flat seasonal rate that HotelMar used before AI pricing.")
+    st.metric(
+        f"Historical {month_name} avg",
+        f"€{baseline:,.2f}",
+        help=f"Average ADR observed across all {month_name} days in the "
+             "training data (the 'old static seasonal rate' baseline).",
+    )
     st.metric("AI suggestion", f"€{ai_price:,.2f}",
-              delta=f"{diff_pct:+.1f}% vs static")
+              delta=f"{diff_pct:+.1f}% vs {month_name} avg")
 
 
 # -----------------------------------------------------------------------------
