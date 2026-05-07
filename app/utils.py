@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.1-comparison"
+APP_BUILD = "v1.2-elasticity"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -60,6 +60,12 @@ OLD_STATIC_PRICE = 110.0
 
 # How many rooms the hotel has, used as the denominator for occupancy.
 TOTAL_ROOMS = 150
+
+# Price elasticity of demand. Empirical literature on mid-range / 4-star
+# hotels lands roughly in [-0.4, -0.8]; we use -0.7, which is the more
+# conservative end (more guests refuse higher prices). Used by the
+# manager dashboard's "with AI — realistic" column.
+PRICE_ELASTICITY = -0.7
 
 
 def apply_occupancy_adjustment(price: float, occupancy: float = BASELINE_OCCUPANCY) -> float:
@@ -393,6 +399,80 @@ def historical_monthly_avg(month: int) -> float:
     a real seasonal rulebook varies by month."""
     df = pd.read_csv(HISTORY_CSV, parse_dates=["ds"])
     return float(df[df["ds"].dt.month == month]["y"].mean())
+
+
+def compute_elasticity_adjusted_kpis(
+    bookings_df: pd.DataFrame,
+    elasticity: float = PRICE_ELASTICITY,
+) -> dict:
+    """Re-state the AI-priced KPIs after applying price elasticity of
+    demand: when AI charges more than the static rulebook, some guests
+    walk away. Returns the same KPI shape as compute_kpis().
+
+    Per-booking model:
+        static_price_i  = sum(historical monthly avg × room mult × nights)
+        ai_price_i      = bookings.total_price (Prophet × room mult × nights)
+        pct_change_i    = (ai_price_i - static_price_i) / static_price_i
+        retention_i     = max(0, 1 + elasticity × pct_change_i)
+        kept_revenue_i  = retention_i × ai_price_i
+
+    Aggregating retention × revenue across bookings gives the
+    realistic AI revenue with demand response. Bookings, room-nights,
+    and occupancy are scaled by the same retention factor.
+    """
+    if bookings_df.empty:
+        return {
+            "total_bookings": 0,
+            "total_revenue": 0.0,
+            "avg_price": 0.0,
+            "avg_occupancy": 0.0,
+        }
+
+    monthly = {m: historical_monthly_avg(m) for m in range(1, 13)}
+
+    total_revenue = 0.0
+    expected_bookings = 0.0
+    expected_room_nights = 0.0
+
+    for _, b in bookings_df.iterrows():
+        multiplier = ROOM_TYPES[b["room_type"]]
+        nights = pd.date_range(
+            b["check_in"], b["check_out"] - pd.Timedelta(days=1), freq="D"
+        )
+        n_nights = len(nights)
+        if n_nights == 0:
+            continue
+
+        static_price = sum(monthly[d.month] * multiplier for d in nights)
+        ai_price = float(b["total_price"])
+        if static_price <= 0:
+            continue
+
+        pct_change = (ai_price - static_price) / static_price
+        # Cap retention at [0, 1] — AI prices are higher overall, so we
+        # don't model a hypothetical "expansion" effect from cheap days.
+        retention = min(1.0, max(0.0, 1.0 + elasticity * pct_change))
+
+        total_revenue += retention * ai_price
+        expected_bookings += retention
+        expected_room_nights += retention * n_nights
+
+    n_bookings = int(round(expected_bookings))
+    avg_price = (
+        total_revenue / expected_room_nights if expected_room_nights > 0 else 0.0
+    )
+
+    window_days = max(
+        (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
+    )
+    avg_occupancy = expected_room_nights / (TOTAL_ROOMS * window_days)
+
+    return {
+        "total_bookings": n_bookings,
+        "total_revenue": total_revenue,
+        "avg_price": avg_price,
+        "avg_occupancy": avg_occupancy,
+    }
 
 
 def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:

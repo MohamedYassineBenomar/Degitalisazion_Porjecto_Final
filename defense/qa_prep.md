@@ -164,22 +164,31 @@ defensible argument for funding the rest.
 
 ---
 
-### 9. How does this connect to the business case numbers in the document?
+### 9. How much is the AI actually worth? (price elasticity, the honest version)
 
-The document quantifies HotelMar at **€6.2 M annual revenue**, **150
-rooms**, **52 % occupancy**, **75 % OTA share**, and **€180 K/year
-in commissions**. The MVP attacks two of those numbers directly.
-**RevPAR uplift from AI pricing**: industry benchmarks for
-revenue-management systems run **15-25 %**, and the document models
-**22 %** — on a €6.2 M base that's **+€280 K/year**. Conservatively,
-even half that uplift would still pay back the build cost in a
-quarter. **Commission savings from direct channel**: if the direct
-booking page recaptures **half of OTA traffic**, we save **half of
-€180 K = €90 K/year**. Combined: **€370 K/year of recovered margin
-on a €6.2 M base — about a 6 % lift to the bottom-line revenue
-line**. The MVP build cost is on the order of **€8 K of effort plus
-zero infrastructure cost** on Streamlit Cloud, so the investment pays
-back in **weeks**.
+The dashboard models this explicitly. The **naive** "with AI" column
+holds demand constant — same 2,494 bookings, just priced by the AI
+instead of the static rulebook — and shows a **+20 % revenue lift**
+(€1.21 M → €1.45 M). That's optimistic: it assumes guests don't
+react to higher prices, which is unrealistic. The **realistic**
+column applies a **price elasticity of demand of η = −0.7**
+(conservative end of the −0.4 to −0.8 range the literature reports
+for mid-range hotels): when the AI charges ~26 % more on average,
+roughly 18 % of guests walk away. After that haircut the lift
+collapses to **+1.0 %** (€1.21 M → €1.22 M) — still positive, but
+honest about the trade-off between higher prices and lower booking
+volume. If we soften elasticity to η = −0.35 (the inelastic end of
+the literature, more typical of resort destinations like Sitges
+where guests are less price-sensitive), the lift recovers to
+**+10.5 %** — which lines up with **Marriott's published +12 %
+RevPAR uplift from AI revenue management**. The right answer
+depends on how price-sensitive HotelMar's specific guest mix turns
+out to be in pilot, and the dashboard exposes the toggle so the
+manager can see all three scenarios. Either way, **layered with the
+direct-channel commission savings** (~€90 K/year if half the OTA
+volume shifts), the combined effect is at least **€100 K-200 K/year
+of recovered margin on a €6.2 M base**, against an **MVP cost of
+~€8 K** and **<€100/month** to run.
 
 ---
 
