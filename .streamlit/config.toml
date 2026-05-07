@@ -1,14 +1,30 @@
-# HotelMar — Streamlit theme.
-# Locked to light mode so the brand colors render consistently
-# regardless of the visitor's OS theme preference.
+# HotelMar — Streamlit theme (production / Streamlit Cloud).
+#
+# Locked to light mode so the brand palette renders consistently
+# regardless of the visitor's OS theme preference. The colors here
+# match the inline CSS used across the page files:
+#
+#   --hm-navy: #0a3d62  deep navy        primary, buttons, headings
+#   --hm-sea : #3c91b3  sea-blue accent  used in card borders + hero
+#   --hm-sky : #d9eef7  light sea-sky    sidebar + page backdrop top
+#   --hm-sand: #f5e6d3  warm sand        accent badges
+#
+# Streamlit's theme system has fewer slots than the full CSS palette,
+# so we map the most-visible roles below and rely on inline CSS in
+# main.py / each page for the rest.
 
 [theme]
-base               = "light"
-primaryColor       = "#0a3d62"   # deep navy — buttons, accents
-backgroundColor    = "#ffffff"
-secondaryBackgroundColor = "#d9eef7"   # soft sea-sky for sidebar
-textColor          = "#1c2b3a"
-font               = "sans serif"
+base                     = "light"
+primaryColor             = "#0a3d62"   # deep navy — buttons, accents
+backgroundColor          = "#ffffff"   # main page background
+secondaryBackgroundColor = "#d9eef7"   # soft sea-sky — sidebar, inputs
+textColor                = "#1c2b3a"   # near-navy body text
+font                     = "sans serif"
 
 [browser]
-gatherUsageStats   = false
+gatherUsageStats = false
+
+[server]
+# Belt-and-braces: Streamlit Cloud sets this anyway, but specifying
+# it here makes `streamlit run` behave the same locally and remotely.
+headless = true

@@ -111,24 +111,179 @@ def predict_prices(check_in: date, check_out: date) -> pd.DataFrame:
 
 # --- Database --------------------------------------------------------------
 
-def init_db() -> None:
-    """Create the bookings table if it doesn't exist."""
+# Demo seed config — exposed at module level so seed_demo_bookings()
+# can be reused both by init_db() (auto-seed on empty DB) and by
+# scripts/03_seed_demo_bookings.py.
+DEMO_SEED_WINDOW_START = date(2017, 7, 1)
+DEMO_SEED_WINDOW_END = date(2017, 11, 29)
+DEMO_SEED_N_BOOKINGS = 2500
+
+_DEMO_GUEST_POOL = [
+    ("Maria Garcia", "maria.garcia@example.com"),
+    ("Liam O'Connor", "liam.oconnor@example.com"),
+    ("Sofia Rossi", "sofia.rossi@example.it"),
+    ("Hans Muller", "hans.muller@example.de"),
+    ("Elena Petrov", "elena.petrov@example.com"),
+    ("Carlos Mendes", "carlos.mendes@example.pt"),
+    ("Yuki Tanaka", "yuki.tanaka@example.jp"),
+    ("Anna Kowalski", "anna.k@example.pl"),
+    ("Pierre Dubois", "p.dubois@example.fr"),
+    ("Aisha Khan", "aisha.khan@example.com"),
+    ("Olivia Smith", "olivia.smith@example.co.uk"),
+    ("Marco Bianchi", "marco.b@example.it"),
+    ("Ingrid Larsen", "ingrid.l@example.no"),
+    ("Tom Hansen", "tom.hansen@example.dk"),
+    ("Beatriz Silva", "beatriz.s@example.br"),
+    ("Lucas Schmidt", "lucas.s@example.de"),
+    ("Nora Lindqvist", "nora.l@example.se"),
+    ("Diego Fernandez", "diego.f@example.es"),
+    ("Hannah Becker", "h.becker@example.de"),
+    ("Rafael Costa", "rafael.c@example.pt"),
+    ("Chloe Martin", "chloe.m@example.fr"),
+    ("Stefan Novak", "s.novak@example.cz"),
+    ("Sara Berg", "sara.berg@example.se"),
+    ("Kenji Saito", "k.saito@example.jp"),
+    ("Layla Ahmed", "layla.a@example.com"),
+    ("Sebastian Klein", "s.klein@example.de"),
+    ("Camila Vargas", "c.vargas@example.es"),
+    ("Mateo Romano", "m.romano@example.it"),
+    ("Freya Eriksen", "freya.e@example.dk"),
+    ("Jonas Weber", "jonas.w@example.ch"),
+]
+_DEMO_MONTH_WEIGHTS = {7: 5, 8: 6, 9: 4, 10: 2, 11: 1}
+_DEMO_NIGHTS = ([1, 2, 3, 4, 5], [1, 3, 4, 3, 2])
+_DEMO_ROOM_WEIGHTS = [6, 3, 1]
+
+
+def _create_bookings_table(conn: sqlite3.Connection) -> None:
+    """Idempotent: create the bookings table if it doesn't exist."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bookings (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            guest_name  TEXT    NOT NULL,
+            email       TEXT    NOT NULL,
+            check_in    TEXT    NOT NULL,
+            check_out   TEXT    NOT NULL,
+            room_type   TEXT    NOT NULL,
+            total_price REAL    NOT NULL,
+            created_at  TEXT    NOT NULL
+        )
+        """
+    )
+
+
+def seed_demo_bookings(verbose: bool = False) -> int:
+    """Wipe and re-populate the bookings table with the demo dataset.
+
+    Used in two places:
+    - by init_db(), automatically, when the deployed app boots and finds
+      an empty table (Streamlit Cloud has ephemeral storage and our
+      bookings.db is gitignored, so a fresh container has nothing).
+    - by scripts/03_seed_demo_bookings.py for local development.
+
+    Returns the number of rows inserted. Deterministic (random.seed=42)
+    so the dashboard looks the same across cold starts.
+    """
+    import random  # local imports to keep top of file lean
+    import pickle
+    from datetime import datetime, timedelta as _td
+
+    if not MODEL_PATH.exists():
+        if verbose:
+            print(f"  [skip] no model at {MODEL_PATH} — run scripts/02_train_model.py first")
+        return 0
+
+    rng = random.Random(42)
+
+    if verbose:
+        print(f"Demo window: {DEMO_SEED_WINDOW_START} -> {DEMO_SEED_WINDOW_END}")
+        print(f"Loading model from {MODEL_PATH} ...")
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+
+    all_dates = pd.date_range(DEMO_SEED_WINDOW_START, DEMO_SEED_WINDOW_END, freq="D")
+    pred = model.predict(pd.DataFrame({"ds": all_dates}))
+    price_lookup = dict(zip(pred["ds"], pred["yhat"]))
+    if verbose:
+        print(f"  cached predictions for {len(price_lookup)} days")
+
+    # Weighted check-in pool: more demand in summer.
+    weighted_dates = []
+    for d in all_dates:
+        weighted_dates.extend([d] * _DEMO_MONTH_WEIGHTS.get(d.month, 1))
+
+    rooms = list(ROOM_TYPES.keys())
+    nights_choices, nights_weights = _DEMO_NIGHTS
+
+    rows = []
+    for _ in range(DEMO_SEED_N_BOOKINGS):
+        guest = rng.choice(_DEMO_GUEST_POOL)
+        check_in_ts = rng.choice(weighted_dates)
+        nights = rng.choices(nights_choices, weights=nights_weights, k=1)[0]
+        check_out_ts = check_in_ts + pd.Timedelta(days=nights)
+        if check_out_ts.date() > DEMO_SEED_WINDOW_END:
+            check_out_ts = pd.Timestamp(DEMO_SEED_WINDOW_END)
+            nights = (check_out_ts - check_in_ts).days
+            if nights < 1:
+                continue
+
+        room = rng.choices(rooms, weights=_DEMO_ROOM_WEIGHTS, k=1)[0]
+        multiplier = ROOM_TYPES[room]
+
+        stay_nights = pd.date_range(
+            check_in_ts, check_out_ts - pd.Timedelta(days=1), freq="D"
+        )
+        total = float(sum(
+            apply_occupancy_adjustment(price_lookup[d] * multiplier)
+            for d in stay_nights
+        ))
+
+        # Backdate created_at so timestamps look organic.
+        days_lead = rng.randint(7, 90)
+        created = check_in_ts - pd.Timedelta(days=days_lead, hours=rng.randint(0, 23))
+
+        rows.append((
+            guest[0], guest[1],
+            check_in_ts.date().isoformat(),
+            check_out_ts.date().isoformat(),
+            room,
+            round(total, 2),
+            created.to_pydatetime().isoformat(timespec="seconds"),
+        ))
+
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS bookings (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                guest_name  TEXT    NOT NULL,
-                email       TEXT    NOT NULL,
-                check_in    TEXT    NOT NULL,
-                check_out   TEXT    NOT NULL,
-                room_type   TEXT    NOT NULL,
-                total_price REAL    NOT NULL,
-                created_at  TEXT    NOT NULL
-            )
-            """
+        _create_bookings_table(conn)
+        conn.execute("DELETE FROM bookings")
+        conn.execute("DELETE FROM sqlite_sequence WHERE name='bookings'")
+        conn.executemany(
+            "INSERT INTO bookings "
+            "(guest_name, email, check_in, check_out, room_type, total_price, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            rows,
         )
+
+    if verbose:
+        print(f"Inserted {len(rows):,} bookings into {DB_PATH}")
+    return len(rows)
+
+
+def init_db() -> None:
+    """Make sure the bookings table exists. If it's empty AND a trained
+    model is available, auto-seed the demo dataset.
+
+    This is what makes the Streamlit Cloud deployment work end-to-end:
+    bookings.db is gitignored, so a fresh container starts with no
+    database file. On first boot, init_db() detects the empty table
+    and populates ~2,500 demo bookings (~5 seconds one-time cost).
+    Subsequent calls do nothing (cheap row-count check)."""
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(DB_PATH) as conn:
+        _create_bookings_table(conn)
+        n = conn.execute("SELECT COUNT(*) FROM bookings").fetchone()[0]
+    if n == 0 and MODEL_PATH.exists():
+        seed_demo_bookings(verbose=False)
 
 
 def save_booking(
