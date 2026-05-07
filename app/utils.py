@@ -17,6 +17,12 @@ import streamlit as st
 
 # --- Paths -----------------------------------------------------------------
 
+# Surface a build marker so Streamlit Cloud's deploy log shows which
+# revision is live; also forces a full container restart on bump
+# (Cloud sometimes hot-reloads page files without re-importing
+# sibling modules like this one, leaving stale symbol tables behind).
+APP_BUILD = "v1.1-comparison"
+
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = PROJECT_ROOT / "models" / "price_model.pkl"
