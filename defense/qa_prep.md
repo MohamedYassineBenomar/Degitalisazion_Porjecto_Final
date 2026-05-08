@@ -47,20 +47,19 @@ RevPAR variance.
 ### 3. How do you know the model is accurate?
 
 Standard machine-learning hygiene: an **80/20 chronological hold-out**.
-I trained Prophet on the first 633 days (Jul 2015 → Mar 2017) and
+I trained Prophet on the first 634 days (Jul 2015 → Mar 2017) and
 predicted the last 159 days (Mar – Aug 2017) without ever showing
-those days to the model. Three metrics on the held-out set:
-**MAE €24.37** (average absolute error per night), **RMSE €29.41**,
-and most importantly **MAPE 18.51 %** — meaning predictions land
-within ±19 % of the actual price on average. By the standard MAPE
-rubric — under 10 % is excellent, 10-20 % is good, 20-50 % is
-reasonable — we're solidly in the good band, which for a noisy
-hospitality time series with strong seasonality is what I'd expect.
-The split is **chronological**, never random, because shuffling rows
-would let the model "see the future" during training and inflate
-accuracy. After validation passed, I refit on the full 792 days for
-production — standard practice: validate on hold-out, deploy with
-everything.
+those days to the model. Three metrics on the held-out set: **MAE €22.26**
+(average absolute error per night), **RMSE €26.22**, and most
+importantly **MAPE 16.99 %** — meaning predictions land within ±17 %
+of the actual price on average. By the standard MAPE rubric — under
+10 % is excellent, 10-20 % is good, 20-50 % is reasonable — we're
+solidly in the good band, which for a noisy hospitality time series
+with strong seasonality is what I'd expect. The split is
+**chronological**, never random, because shuffling rows would let the
+model "see the future" during training and inflate accuracy. After
+validation passed, I refit on the full 793 days for production —
+standard practice: validate on hold-out, deploy with everything.
 
 ---
 
