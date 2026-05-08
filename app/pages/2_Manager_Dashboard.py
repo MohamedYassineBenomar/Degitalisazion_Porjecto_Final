@@ -181,6 +181,21 @@ st.markdown(
         }
         .hm-compare .lift-up   { color: var(--hm-up);   font-weight: 700; }
         .hm-compare .lift-flat { color: #95a5a6;        font-weight: 400; }
+
+        /* Difference column cells — green background if the metric went
+           up, red if it went down. Text always stays black so the value
+           remains readable on either tint. */
+        .hm-compare .diff-cell {
+            font-weight: 700;
+            color: #000;                      /* text stays black on every tint */
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+            white-space: nowrap;
+        }
+        .hm-compare .diff-up   { background: #d4f5dc; }   /* soft green */
+        .hm-compare .diff-down { background: #fbd7d7; }   /* soft red   */
+        .hm-compare .diff-flat { background: #f0f0f0; color: #000; }
+
         /* Highlight the gross-profit row — it's the bottom line. */
         .hm-compare tr.hm-row-profit td {
             background: #f7fbf8;
@@ -526,33 +541,31 @@ else:
     static_kpis = compute_static_baseline_kpis(bookings_df)
     realistic_kpis = compute_elasticity_adjusted_kpis(bookings_df)
 
-    def lift(static_v: float, ai_v: float) -> tuple[str, str]:
-        """Return (lift label, css class). Tiny diffs render as flat."""
-        if static_v <= 0:
-            return ("—", "lift-flat")
-        delta_pct = (ai_v - static_v) / static_v * 100
-        if abs(delta_pct) < 0.5:
-            return ("—", "lift-flat")
-        arrow = "▲" if delta_pct > 0 else "▼"
-        cls = "lift-up" if delta_pct > 0 else "lift-down"
-        return (f"{arrow} {abs(delta_pct):.1f}%", cls)
-
-    def cost_delta(static_v: float, ai_v: float) -> str:
-        """Plain '−€N' / '+€N' / no-change label for the cost row."""
+    def diff_cell(static_v: float, ai_v: float, fmt: str) -> str:
+        """Render the right-hand 'Difference' cell:
+           - green background if AI value > static
+           - red   background if AI value < static
+           - grey  background if essentially equal
+           Text stays black on every tint. The numeric value is the
+           signed difference (ai - static), formatted via `fmt`.
+        """
         diff = ai_v - static_v
-        if abs(diff) < 1:
-            return "no change"
-        sign = "−" if diff < 0 else "+"
-        return f"{sign}€{abs(diff):,.0f}"
+        if abs(diff) < 0.005:
+            return f'<td class="diff-cell diff-flat">no change</td>'
+        cls = "diff-up" if diff > 0 else "diff-down"
+        sign = "+" if diff > 0 else "−"
+        body = fmt.format(abs(diff))
+        return f'<td class="diff-cell {cls}">{sign}{body}</td>'
 
-    naive_rev_lift, naive_rev_cls = lift(static_kpis["total_revenue"], kpis["total_revenue"])
-    real_rev_lift, real_rev_cls = lift(static_kpis["total_revenue"], realistic_kpis["total_revenue"])
-    naive_profit_lift, naive_profit_cls = lift(static_kpis["gross_profit"], kpis["gross_profit"])
-    real_profit_lift, real_profit_cls = lift(static_kpis["gross_profit"], realistic_kpis["gross_profit"])
-    naive_price_lift, naive_price_cls = lift(static_kpis["avg_price"], kpis["avg_price"])
-    real_price_lift, real_price_cls = lift(static_kpis["avg_price"], realistic_kpis["avg_price"])
-    naive_cost_delta = cost_delta(static_kpis["total_variable_cost"], kpis["total_variable_cost"])
-    real_cost_delta = cost_delta(static_kpis["total_variable_cost"], realistic_kpis["total_variable_cost"])
+    # Pre-render every Difference cell so the f-string below stays clean.
+    d_bookings  = diff_cell(static_kpis["total_bookings"],       realistic_kpis["total_bookings"],       "{:,.0f}")
+    d_revenue   = diff_cell(static_kpis["total_revenue"],        realistic_kpis["total_revenue"],        "€{:,.2f}")
+    d_costs     = diff_cell(static_kpis["total_variable_cost"],  realistic_kpis["total_variable_cost"],  "€{:,.2f}")
+    d_profit    = diff_cell(static_kpis["gross_profit"],         realistic_kpis["gross_profit"],         "€{:,.2f}")
+    d_netprofit = d_profit  # net = gross in this comparison
+    d_margin    = diff_cell(static_kpis["gross_margin"]*100,     realistic_kpis["gross_margin"]*100,     "{:.1f} pp")
+    d_price     = diff_cell(static_kpis["avg_price"],            realistic_kpis["avg_price"],            "€{:,.2f}")
+    d_occupancy = diff_cell(static_kpis["avg_occupancy"]*100,    realistic_kpis["avg_occupancy"]*100,    "{:.1f} pp")
 
     st.markdown(
         f"""
@@ -562,58 +575,58 @@ else:
                     <tr>
                         <th>Metric</th>
                         <th>Without AI<small>static seasonal rulebook<br>(monthly avg per month)</small></th>
-                        <th>With AI — naive<small>same {kpis['total_bookings']:,} bookings,<br>no demand response</small></th>
-                        <th>With AI — realistic<small>elasticity-adjusted<br>(η = {PRICE_ELASTICITY})</small></th>
+                        <th>With AI<small>elasticity-adjusted<br>(η = {PRICE_ELASTICITY})</small></th>
+                        <th>Difference<small>AI − static<br>(green = up, red = down)</small></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td class="metric-name">Total bookings</td>
                         <td class="static-cell">{static_kpis['total_bookings']:,}</td>
-                        <td class="ai-cell">{kpis['total_bookings']:,}</td>
                         <td class="ai-cell">{realistic_kpis['total_bookings']:,}</td>
+                        {d_bookings}
                     </tr>
                     <tr>
                         <td class="metric-name">Total revenue</td>
                         <td class="static-cell">€{static_kpis['total_revenue']:,.2f}</td>
-                        <td class="ai-cell">€{kpis['total_revenue']:,.2f}<br><span class="{naive_rev_cls}" style="font-size:0.85rem;">{naive_rev_lift} vs static</span></td>
-                        <td class="ai-cell">€{realistic_kpis['total_revenue']:,.2f}<br><span class="{real_rev_cls}" style="font-size:0.85rem;">{real_rev_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['total_revenue']:,.2f}</td>
+                        {d_revenue}
                     </tr>
                     <tr>
                         <td class="metric-name">Variable operating costs<small style="color:#5b6b78;font-weight:400;">€{VARIABLE_COST_PER_ROOM_NIGHT:.0f}/room-night × room-nights sold<br>(housekeeping, supplies, energy, laundry, breakfast)</small></td>
                         <td class="static-cell">€{static_kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{static_kpis['room_nights']:,.0f} room-nights</span></td>
-                        <td class="ai-cell">€{kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{kpis['room_nights']:,.0f} room-nights · {naive_cost_delta}</span></td>
-                        <td class="ai-cell">€{realistic_kpis['total_variable_cost']:,.2f}<br><span class="lift-up" style="font-size:0.82rem;">{realistic_kpis['room_nights']:,.0f} room-nights · {real_cost_delta}</span></td>
+                        <td class="ai-cell">€{realistic_kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{realistic_kpis['room_nights']:,.0f} room-nights</span></td>
+                        {d_costs}
                     </tr>
                     <tr class="hm-row-profit">
                         <td class="metric-name">Gross profit</td>
                         <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
-                        <td class="ai-cell">€{kpis['gross_profit']:,.2f}<br><span class="{naive_profit_cls}" style="font-size:0.85rem;">{naive_profit_lift} vs static</span></td>
-                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}<br><span class="{real_profit_cls}" style="font-size:0.85rem;">{real_profit_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
+                        {d_profit}
                     </tr>
                     <tr class="hm-row-profit">
                         <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Gross profit − fixed overhead<br>(salaries, utilities, mortgage — same in all scenarios)</small></td>
                         <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
-                        <td class="ai-cell">€{kpis['gross_profit']:,.2f}<br><span class="{naive_profit_cls}" style="font-size:0.85rem;">{naive_profit_lift} vs static</span></td>
-                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}<br><span class="{real_profit_cls}" style="font-size:0.85rem;">{real_profit_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
+                        {d_netprofit}
                     </tr>
                     <tr>
                         <td class="metric-name">Gross margin</td>
                         <td class="static-cell">{static_kpis['gross_margin']*100:.1f}%</td>
-                        <td class="ai-cell">{kpis['gross_margin']*100:.1f}%</td>
                         <td class="ai-cell">{realistic_kpis['gross_margin']*100:.1f}%</td>
+                        {d_margin}
                     </tr>
                     <tr>
                         <td class="metric-name">Avg price&nbsp;/&nbsp;night</td>
                         <td class="static-cell">€{static_kpis['avg_price']:,.2f}</td>
-                        <td class="ai-cell">€{kpis['avg_price']:,.2f}<br><span class="{naive_price_cls}" style="font-size:0.85rem;">{naive_price_lift} vs static</span></td>
-                        <td class="ai-cell">€{realistic_kpis['avg_price']:,.2f}<br><span class="{real_price_cls}" style="font-size:0.85rem;">{real_price_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['avg_price']:,.2f}</td>
+                        {d_price}
                     </tr>
                     <tr>
                         <td class="metric-name">Avg occupancy</td>
                         <td class="static-cell">{static_kpis['avg_occupancy']*100:.1f}%</td>
-                        <td class="ai-cell">{kpis['avg_occupancy']*100:.1f}%</td>
                         <td class="ai-cell">{realistic_kpis['avg_occupancy']*100:.1f}%</td>
+                        {d_occupancy}
                     </tr>
                 </tbody>
             </table>
