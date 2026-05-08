@@ -223,12 +223,6 @@ st.markdown(
             font-weight: 700;
         }
         .hm-compare tr.hm-row-profit .metric-name { color: var(--hm-up); }
-        /* Empty cells in the profit row stay invisible — no tint, no border —
-           so the row visually starts only where the data does. */
-        .hm-compare tr.hm-row-profit td:empty {
-            background: transparent !important;
-            border-color: transparent !important;
-        }
 
         /* Headline profit-lift callout. */
         .hm-profitBox {
@@ -657,9 +651,9 @@ else:
                         {d_occupancy}
                     </tr>
                     <tr class="hm-row-profit">
-                        <td></td>
-                        <td></td>
-                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
+                        <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Revenue − variable costs − fixed overhead<br>(fixed overhead is the same in all scenarios, so it cancels)</small></td>
+                        <td class="static-cell"></td>
+                        <td class="ai-cell"></td>
                         {d_netprofit}
                     </tr>
                 </tbody>
