@@ -18,7 +18,6 @@ import pandas as pd
 # you call it from.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_CSV = PROJECT_ROOT / "data" / "hotel_bookings.csv"
-FILTERED_CSV = PROJECT_ROOT / "data" / "filtered_bookings.csv"
 OUT_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 
 # Sanity bounds for ADR (average daily rate, in EUR). The raw dataset
@@ -52,13 +51,6 @@ def main() -> None:
         + df["arrival_date_day_of_month"].astype(str),
         format="%Y-%B-%d",
     )
-
-    # 3b. Persist the filtered subset for transparency / defense.
-    #     Same columns as the raw CSV (so reviewers can see exactly what
-    #     was kept), plus the parsed arrival_date as the first column.
-    cols = ["arrival_date"] + [c for c in df.columns if c != "arrival_date"]
-    df[cols].to_csv(FILTERED_CSV, index=False)
-    print(f"  saved filtered subset -> {FILTERED_CSV} ({len(df):,} rows)")
 
     # 4. Group by date and average the ADR across all bookings on that day.
     daily = (

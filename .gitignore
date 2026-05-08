@@ -7,5 +7,3 @@ __pycache__/
 !models/price_model.pkl
 bookings.db
 .DS_Store
-# LibreOffice / OpenOffice temp lock files (created when a CSV is open in Calc)
-.~lock.*#
