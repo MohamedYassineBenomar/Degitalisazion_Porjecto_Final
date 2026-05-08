@@ -197,14 +197,22 @@ st.markdown(
         .hm-compare .diff-flat { background: #f0f0f0; color: #000; }
         /* Avg price / night gets a cautionary orange — pricing up is the
            AI's job, but it's not unambiguously good (elasticity costs us
-           bookings), so it's flagged neutral rather than green. */
-        .hm-compare .diff-orange { background: #ffd9a8; color: #000; }
+           bookings), so it's flagged neutral rather than green.
+           !important here so the orange always wins over any row-level
+           background tint that may sit on a future profit-classed row. */
+        .hm-compare .diff-orange {
+            background: #ffd9a8 !important;
+            color: #000 !important;
+        }
         /* Net profit is the headline metric — gets the strongest signal:
-           solid dark green band with white text. */
+           solid dark green band with white text. !important is required
+           because the .hm-row-profit row tint (#f7fbf8) has higher
+           specificity than a single class selector, and would otherwise
+           win and wash this cell out to soft green. */
         .hm-compare .diff-headline {
-            background: #1E7C2F;
-            color: #fff;
-            font-weight: 800;
+            background: #1E7C2F !important;
+            color: #fff !important;
+            font-weight: 800 !important;
         }
 
         /* Highlight the gross-profit row — it's the bottom line. */
