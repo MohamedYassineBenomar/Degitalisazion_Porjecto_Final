@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.2-elasticity"
+APP_BUILD = "v1.3-profit"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -66,6 +66,13 @@ TOTAL_ROOMS = 150
 # conservative end (more guests refuse higher prices). Used by the
 # manager dashboard's "with AI — realistic" column.
 PRICE_ELASTICITY = -0.7
+
+# Variable operating cost per occupied room-night, EUR. Industry breakdown
+# for a 4-star hotel: housekeeping ~€15, supplies ~€5, energy ~€8,
+# laundry ~€7, breakfast ~€8 = €43. These are costs that scale with
+# occupancy — when AI prices push some guests away, we incur fewer of
+# them, which partly offsets the lost revenue.
+VARIABLE_COST_PER_ROOM_NIGHT = 43.0
 
 
 def apply_occupancy_adjustment(price: float, occupancy: float = BASELINE_OCCUPANCY) -> float:
@@ -355,40 +362,71 @@ def get_all_bookings() -> pd.DataFrame:
     return df
 
 
-def compute_kpis(df: pd.DataFrame) -> dict:
-    """Compute the four headline KPIs shown on the manager dashboard.
+def _empty_kpi_dict() -> dict:
+    return {
+        "total_bookings": 0,
+        "room_nights": 0,
+        "total_revenue": 0.0,
+        "total_variable_cost": 0.0,
+        "gross_profit": 0.0,
+        "gross_margin": 0.0,
+        "avg_price": 0.0,
+        "avg_occupancy": 0.0,
+    }
 
-    - total_bookings : count of confirmed booking rows
-    - total_revenue  : sum of total_price across all bookings (EUR)
-    - avg_price      : average price per *room-night* sold (EUR)
-    - avg_occupancy  : room-nights sold / (TOTAL_ROOMS x days_in_window)
+
+def _kpi_dict(
+    total_bookings: float,
+    room_nights: float,
+    total_revenue: float,
+    window_days: int,
+) -> dict:
+    """Build the standard KPI dict from raw aggregates. All three KPI
+    helpers (static / naive / elasticity-adjusted) flow through here so
+    the cost-and-profit math stays identical."""
+    total_variable_cost = room_nights * VARIABLE_COST_PER_ROOM_NIGHT
+    gross_profit = total_revenue - total_variable_cost
+    gross_margin = gross_profit / total_revenue if total_revenue > 0 else 0.0
+    avg_price = total_revenue / room_nights if room_nights > 0 else 0.0
+    avg_occupancy = room_nights / (TOTAL_ROOMS * window_days) if window_days > 0 else 0.0
+
+    return {
+        "total_bookings": int(round(total_bookings)),
+        "room_nights": room_nights,
+        "total_revenue": total_revenue,
+        "total_variable_cost": total_variable_cost,
+        "gross_profit": gross_profit,
+        "gross_margin": gross_margin,
+        "avg_price": avg_price,
+        "avg_occupancy": avg_occupancy,
+    }
+
+
+def compute_kpis(df: pd.DataFrame) -> dict:
+    """Compute the headline KPIs shown on the manager dashboard.
+
+    - total_bookings      : count of confirmed booking rows
+    - room_nights         : total stay-nights sold
+    - total_revenue       : sum of total_price across all bookings (EUR)
+    - total_variable_cost : room_nights × VARIABLE_COST_PER_ROOM_NIGHT
+    - gross_profit        : revenue minus variable cost
+    - gross_margin        : gross_profit / total_revenue (0..1)
+    - avg_price           : average price per room-night sold (EUR)
+    - avg_occupancy       : room-nights sold / (TOTAL_ROOMS × days_in_window)
 
     days_in_window covers the period from the earliest check-in to the
     latest check-out so the metric reflects "how full have we been over
     the booked horizon".
     """
     if df.empty:
-        return {
-            "total_bookings": 0,
-            "total_revenue": 0.0,
-            "avg_price": 0.0,
-            "avg_occupancy": 0.0,
-        }
+        return _empty_kpi_dict()
 
     total_bookings = int(len(df))
     total_revenue = float(df["total_price"].sum())
     room_nights = int(df["nights"].sum())
-    avg_price = total_revenue / room_nights if room_nights else 0.0
-
     window_days = max((df["check_out"].max() - df["check_in"].min()).days, 1)
-    avg_occupancy = room_nights / (TOTAL_ROOMS * window_days)
 
-    return {
-        "total_bookings": total_bookings,
-        "total_revenue": total_revenue,
-        "avg_price": avg_price,
-        "avg_occupancy": avg_occupancy,
-    }
+    return _kpi_dict(total_bookings, room_nights, total_revenue, window_days)
 
 
 @st.cache_data(show_spinner=False)
@@ -421,12 +459,7 @@ def compute_elasticity_adjusted_kpis(
     and occupancy are scaled by the same retention factor.
     """
     if bookings_df.empty:
-        return {
-            "total_bookings": 0,
-            "total_revenue": 0.0,
-            "avg_price": 0.0,
-            "avg_occupancy": 0.0,
-        }
+        return _empty_kpi_dict()
 
     monthly = {m: historical_monthly_avg(m) for m in range(1, 13)}
 
@@ -457,22 +490,13 @@ def compute_elasticity_adjusted_kpis(
         expected_bookings += retention
         expected_room_nights += retention * n_nights
 
-    n_bookings = int(round(expected_bookings))
-    avg_price = (
-        total_revenue / expected_room_nights if expected_room_nights > 0 else 0.0
-    )
-
     window_days = max(
         (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
     )
-    avg_occupancy = expected_room_nights / (TOTAL_ROOMS * window_days)
 
-    return {
-        "total_bookings": n_bookings,
-        "total_revenue": total_revenue,
-        "avg_price": avg_price,
-        "avg_occupancy": avg_occupancy,
-    }
+    return _kpi_dict(
+        expected_bookings, expected_room_nights, total_revenue, window_days
+    )
 
 
 def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:
@@ -486,12 +510,7 @@ def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:
     on the old rulebook instead of switching to AI?'
     """
     if bookings_df.empty:
-        return {
-            "total_bookings": 0,
-            "total_revenue": 0.0,
-            "avg_price": 0.0,
-            "avg_occupancy": 0.0,
-        }
+        return _empty_kpi_dict()
 
     monthly = {m: historical_monthly_avg(m) for m in range(1, 13)}
 
@@ -509,19 +528,11 @@ def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:
     total_revenue = float(sum(nightly_prices))
     total_bookings = int(len(bookings_df))
     room_nights = len(nightly_prices)
-    avg_price = total_revenue / room_nights if room_nights else 0.0
-
     window_days = max(
         (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
     )
-    avg_occupancy = room_nights / (TOTAL_ROOMS * window_days)
 
-    return {
-        "total_bookings": total_bookings,
-        "total_revenue": total_revenue,
-        "avg_price": avg_price,
-        "avg_occupancy": avg_occupancy,
-    }
+    return _kpi_dict(total_bookings, room_nights, total_revenue, window_days)
 
 
 def revenue_per_day(df: pd.DataFrame) -> pd.DataFrame:

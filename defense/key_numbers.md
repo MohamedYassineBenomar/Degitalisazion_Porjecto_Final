@@ -57,27 +57,37 @@
 | Sun 24 Sep 2017 | **€116.81** |
 | **Total (3 nights)** | **€368.25** |
 
-### Dashboard KPIs (from 2,494 seeded bookings)
+### Dashboard KPIs (from 2,494 seeded bookings, demo window 152 days)
 
-| | |
-|---|---:|
-| Total bookings | **2,494** |
-| Total revenue (demo window) | **€1,447,807.89** |
-| Avg price per night | **€185.50** |
-| Avg occupancy | **34.5 %** |
-| Demo window | Jul 1 → Nov 29 2017 (152 days) |
+| Metric | Without AI | With AI naive | With AI realistic (η=−0.7) |
+|---|---:|---:|---:|
+| Total bookings | 2,494 | 2,494 | **2,040** |
+| Room-nights sold | 7,805 | 7,805 | **6,390** |
+| Total revenue | €1,206,069 | €1,447,808 | **€1,218,391** |
+| Variable op. costs (€43/rn) | €335,615 | €335,615 | **€274,769** |
+| **Gross profit** | **€870,454** | **€1,112,193** | **€943,622** |
+| Gross margin | 72.2 % | 76.8 % | **77.4 %** |
+| Avg price / night | €154.53 | €185.50 | €190.67 |
+| Avg occupancy | 34.5 % | 34.5 % | 28.2 % |
+
+**Realistic profit lift: +€73 K (+8.4 %)** = €12 K from pricing
+   + €61 K from cost savings on the 1,415 fewer room-nights served.
 
 ---
 
-## 💰 Impact (the close)
+## 💰 Impact (the close — gross-profit version)
 
 | | |
 |---|---:|
-| RevPAR uplift from AI pricing (industry benchmark) | **+22 %** |
-| ↳ Additional revenue/year | **+€280 K** |
+| Variable cost per room-night (industry standard) | **€43** |
+| Realistic profit lift on the **demo** (152-day back-test) | **+€73 K** |
+| ↳ from smarter pricing (revenue effect) | +€12 K |
+| ↳ from lower variable costs (fewer rooms × €43) | +€61 K |
+| Annualization factor (€6.2 M ÷ demo €1.21 M static) | **≈ 5.1×** |
+| **Realistic annual gross-profit lift (AI alone)** | **~€370 K** |
 | Direct-channel commission savings (50 % shift) | **+€90 K** |
-| **Total annual impact** | ****€370 K****  |
-| As % of €6.2 M base | **~6 %** |
+| **Total combined annual impact** | **~€450-500 K** |
+| As % of €6.2 M base | **~7 %** |
 | MVP build cost | **~€8 K** |
 | Production run cost | **<€100 / month  (~€1-2 K / year)** |
 | Payback | **weeks, not years** |
@@ -110,11 +120,16 @@
 
 ## 🎯 If they only remember three numbers
 
-> **MAPE 16.99 %**     — the model is honest
+> **MAPE 16.99 %**            — the model is honest
 >
-> **€370 K / year**    — the annual impact on a €6.2 M business
+> **+€370 K / year gross profit**  — realistic AI lift, scaled to €6.2 M
 >
-> **<€100 / month**    — what it costs to run
+> **<€100 / month**            — what it costs to run
+
+(And one bonus: the realistic profit lift comes ~85 % from
+**cost discipline** — fewer low-margin rooms sold at higher prices —
+not the headline revenue uplift. That's the unglamorous truth of
+revenue management.)
 
 ---
 

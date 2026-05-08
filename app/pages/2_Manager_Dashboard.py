@@ -181,6 +181,52 @@ st.markdown(
         }
         .hm-compare .lift-up   { color: var(--hm-up);   font-weight: 700; }
         .hm-compare .lift-flat { color: #95a5a6;        font-weight: 400; }
+        /* Highlight the gross-profit row — it's the bottom line. */
+        .hm-compare tr.hm-row-profit td {
+            background: #f7fbf8;
+            border-top: 1px solid #d3e8d4;
+            border-bottom: 1px solid #d3e8d4;
+            font-weight: 700;
+        }
+        .hm-compare tr.hm-row-profit .metric-name { color: var(--hm-up); }
+
+        /* Headline profit-lift callout. */
+        .hm-profitBox {
+            background: linear-gradient(135deg, #1e7d2f 0%, #2e9b41 100%);
+            color: white;
+            padding: 24px 28px;
+            border-radius: 14px;
+            margin-top: 18px;
+            box-shadow: 0 6px 20px rgba(30, 125, 47, 0.25);
+        }
+        .hm-profitBox h4 {
+            color: white;
+            margin: 0 0 8px 0;
+            font-size: 1.05rem;
+            letter-spacing: 0.02em;
+        }
+        .hm-profitBox .pb-headline {
+            font-size: 1.55rem;
+            font-weight: 700;
+            margin: 4px 0 8px 0;
+            line-height: 1.25;
+        }
+        .hm-profitBox .pb-annual {
+            font-size: 1.05rem;
+            color: rgba(255,255,255,0.92);
+            margin-bottom: 10px;
+        }
+        .hm-profitBox .pb-decomp {
+            background: rgba(255,255,255,0.13);
+            border-left: 3px solid rgba(255,255,255,0.55);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            color: rgba(255,255,255,0.95);
+            line-height: 1.55;
+            margin-top: 4px;
+        }
+        .hm-profitBox b { color: white; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -474,6 +520,9 @@ if bookings_df.empty:
         "then come back and click **↻ Refresh Data** in the sidebar."
     )
 else:
+    from utils import VARIABLE_COST_PER_ROOM_NIGHT  # local import to avoid
+
+    # cluttering the top of the file
     static_kpis = compute_static_baseline_kpis(bookings_df)
     realistic_kpis = compute_elasticity_adjusted_kpis(bookings_df)
 
@@ -488,18 +537,22 @@ else:
         cls = "lift-up" if delta_pct > 0 else "lift-down"
         return (f"{arrow} {abs(delta_pct):.1f}%", cls)
 
-    naive_rev_lift, naive_rev_cls = lift(
-        static_kpis["total_revenue"], kpis["total_revenue"]
-    )
-    real_rev_lift, real_rev_cls = lift(
-        static_kpis["total_revenue"], realistic_kpis["total_revenue"]
-    )
-    naive_price_lift, naive_price_cls = lift(
-        static_kpis["avg_price"], kpis["avg_price"]
-    )
-    real_price_lift, real_price_cls = lift(
-        static_kpis["avg_price"], realistic_kpis["avg_price"]
-    )
+    def cost_delta(static_v: float, ai_v: float) -> str:
+        """Plain '−€N' / '+€N' / no-change label for the cost row."""
+        diff = ai_v - static_v
+        if abs(diff) < 1:
+            return "no change"
+        sign = "−" if diff < 0 else "+"
+        return f"{sign}€{abs(diff):,.0f}"
+
+    naive_rev_lift, naive_rev_cls = lift(static_kpis["total_revenue"], kpis["total_revenue"])
+    real_rev_lift, real_rev_cls = lift(static_kpis["total_revenue"], realistic_kpis["total_revenue"])
+    naive_profit_lift, naive_profit_cls = lift(static_kpis["gross_profit"], kpis["gross_profit"])
+    real_profit_lift, real_profit_cls = lift(static_kpis["gross_profit"], realistic_kpis["gross_profit"])
+    naive_price_lift, naive_price_cls = lift(static_kpis["avg_price"], kpis["avg_price"])
+    real_price_lift, real_price_cls = lift(static_kpis["avg_price"], realistic_kpis["avg_price"])
+    naive_cost_delta = cost_delta(static_kpis["total_variable_cost"], kpis["total_variable_cost"])
+    real_cost_delta = cost_delta(static_kpis["total_variable_cost"], realistic_kpis["total_variable_cost"])
 
     st.markdown(
         f"""
@@ -527,6 +580,24 @@ else:
                         <td class="ai-cell">€{realistic_kpis['total_revenue']:,.2f}<br><span class="{real_rev_cls}" style="font-size:0.85rem;">{real_rev_lift} vs static</span></td>
                     </tr>
                     <tr>
+                        <td class="metric-name">Variable operating costs<small style="color:#5b6b78;font-weight:400;">€{VARIABLE_COST_PER_ROOM_NIGHT:.0f}/room-night × room-nights sold<br>(housekeeping, supplies, energy, laundry, breakfast)</small></td>
+                        <td class="static-cell">€{static_kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{static_kpis['room_nights']:,.0f} room-nights</span></td>
+                        <td class="ai-cell">€{kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{kpis['room_nights']:,.0f} room-nights · {naive_cost_delta}</span></td>
+                        <td class="ai-cell">€{realistic_kpis['total_variable_cost']:,.2f}<br><span class="lift-up" style="font-size:0.82rem;">{realistic_kpis['room_nights']:,.0f} room-nights · {real_cost_delta}</span></td>
+                    </tr>
+                    <tr class="hm-row-profit">
+                        <td class="metric-name">Gross profit</td>
+                        <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
+                        <td class="ai-cell">€{kpis['gross_profit']:,.2f}<br><span class="{naive_profit_cls}" style="font-size:0.85rem;">{naive_profit_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}<br><span class="{real_profit_cls}" style="font-size:0.85rem;">{real_profit_lift} vs static</span></td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">Gross margin</td>
+                        <td class="static-cell">{static_kpis['gross_margin']*100:.1f}%</td>
+                        <td class="ai-cell">{kpis['gross_margin']*100:.1f}%</td>
+                        <td class="ai-cell">{realistic_kpis['gross_margin']*100:.1f}%</td>
+                    </tr>
+                    <tr>
                         <td class="metric-name">Avg price&nbsp;/&nbsp;night</td>
                         <td class="static-cell">€{static_kpis['avg_price']:,.2f}</td>
                         <td class="ai-cell">€{kpis['avg_price']:,.2f}<br><span class="{naive_price_cls}" style="font-size:0.85rem;">{naive_price_lift} vs static</span></td>
@@ -546,18 +617,50 @@ else:
     )
 
     st.caption(
-        f"**Price elasticity of demand** assumed at **η = {PRICE_ELASTICITY}** "
-        "(within the −0.4 to −0.8 band reported in industry literature for "
-        "mid-range / 4-star hotels). The **'realistic' column models that "
-        "some guests will refuse to book at higher prices**: when AI charges "
-        "20–30% more than the rulebook on a given booking, a fraction "
-        "(elasticity × pct change) of those guests walk away. **Net "
-        "revenue lift is still positive but smaller than the naive "
-        "comparison** — the realistic column is the honest one to defend "
-        "in front of the jury. (For comparison: published RevPAR uplift "
-        "from AI revenue management at major chains like Marriott is "
-        "around +12%, which corresponds to a less elastic demand curve "
-        "of around η = −0.35.)"
+        f"**Variable operating costs (€{VARIABLE_COST_PER_ROOM_NIGHT:.0f}/room-night)** "
+        "include housekeeping, energy, laundry, supplies, and breakfast — costs that "
+        "scale with occupancy. The **realistic** AI scenario sells fewer rooms (price "
+        f"elasticity η = {PRICE_ELASTICITY}) but **also incurs lower operating costs**, "
+        "so part of the 'lost revenue' from elasticity is recovered as cost savings. "
+        "**Gross profit is the honest bottom-line metric** — the row highlighted in "
+        "green above is the one to look at, not revenue."
+    )
+
+    # ----- Headline profit-lift callout -----------------------------------
+    real_profit_diff = realistic_kpis["gross_profit"] - static_kpis["gross_profit"]
+    real_revenue_diff = realistic_kpis["total_revenue"] - static_kpis["total_revenue"]
+    real_cost_savings = static_kpis["total_variable_cost"] - realistic_kpis["total_variable_cost"]
+    real_profit_pct = (real_profit_diff / static_kpis["gross_profit"] * 100
+                       if static_kpis["gross_profit"] > 0 else 0.0)
+    annual_scale = 6_200_000 / static_kpis["total_revenue"] if static_kpis["total_revenue"] else 0.0
+    annual_profit_lift = real_profit_diff * annual_scale
+
+    st.markdown(
+        f"""
+        <div class="hm-profitBox">
+            <h4>💰 BOTTOM LINE — REALISTIC PROFIT LIFT WITH AI</h4>
+            <div class="pb-headline">
+                €{real_profit_diff:,.0f} additional gross profit on the
+                152-day demo window ({real_profit_pct:+.1f}% over static)
+            </div>
+            <div class="pb-annual">
+                Scaled to HotelMar's full €6.2M operation:
+                <b>~€{annual_profit_lift/1000:,.0f}K/year additional gross profit</b>
+                (annualization factor ≈ {annual_scale:.1f}×).
+            </div>
+            <div class="pb-decomp">
+                <b>Where it comes from:</b><br>
+                • <b>Smarter pricing</b> (revenue effect after elasticity):
+                  €{real_revenue_diff:+,.0f} on the demo<br>
+                • <b>Lower variable costs</b> (fewer low-margin rooms sold):
+                  €{real_cost_savings:+,.0f} on the demo<br>
+                Together: €{real_profit_diff:+,.0f} of bottom-line lift —
+                most of the value is actually <b>cost discipline from
+                better-priced occupancy</b>, not the revenue uplift itself.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 
