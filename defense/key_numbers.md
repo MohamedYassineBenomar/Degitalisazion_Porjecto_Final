@@ -23,12 +23,14 @@
 
 | | |
 |---|---:|
-| Training data | Kaggle "Hotel Booking Demand" — Resort Hotel only |
-| Training rows after cleaning | **793 days** (2015-07-01 → 2017-08-31) |
-| Train/test split | **80 / 20 chronological** (634 / 159 days) |
-| MAE (avg absolute error) | **€22.26 / night** |
-| RMSE | **€26.22 / night** |
-| **MAPE** | **16.99 %  →  GOOD (10–20 %)** |
+| Training data | Kaggle "Hotel Booking Demand" — Resort Hotel + nearby markets only |
+| Country filter | **{ESP, PRT, FRA, ITA, AND}** — Spain + 4 closest neighbours |
+| Filtered bookings (rows) | 15,079 of 28,938 Resort non-cancelled (52 %) |
+| Training rows after aggregation | **792 days** (2015-07-01 → 2017-08-31) |
+| Train/test split | **80 / 20 chronological** (633 / 159 days) |
+| MAE (avg absolute error) | **€24.37 / night** |
+| RMSE | **€29.41 / night** |
+| **MAPE** | **18.51 %  →  GOOD (10–20 %)** |
 | Forecast horizon | 90 days (Sep 1 → Nov 29 2017) |
 | August premium learned | **+€95** above yearly avg |
 | Saturday premium learned | **+€6.34**  (Friday +€5.88 ≈ **+€10 weekend lift**) |
@@ -120,9 +122,9 @@
 
 ## 🎯 If they only remember three numbers
 
-> **MAPE 16.99 %**            — the model is honest
+> **MAPE 18.51 %**            — the model is honest
 >
-> **+€370 K / year gross profit**  — realistic AI lift, scaled to €6.2 M
+> **+€360 K / year gross profit**  — realistic AI lift, scaled to €6.2 M
 >
 > **<€100 / month**            — what it costs to run
 

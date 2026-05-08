@@ -73,19 +73,20 @@ Nov 2017, and why the manager dashboard shows numbers for
 "Friday 15 September 2017" rather than the calendar date you're
 running it on.
 
-## Model evaluation (v0.2.1)
+## Model evaluation
 
 Trained Prophet on the first 80% of days (chronological), tested on the
 held-out 20%:
 
 | Metric | Value |
 |--------|------:|
-| MAE    | €22.26 / night |
-| RMSE   | €26.22 / night |
-| MAPE   | **16.99 %** — *good* (industry rule: <10% excellent, 10–20% good) |
+| MAE    | €24.37 / night |
+| RMSE   | €29.41 / night |
+| MAPE   | **18.51 %** — *good* (industry rule: <10% excellent, 10–20% good) |
 
-After evaluation, the production model was refit on the full 793 days.
-See `data/test_evaluation.png` for the visual comparison.
+After evaluation, the production model was refit on the full 792 days.
+See `data/test_evaluation.png` for the visual comparison and
+`defense/data_pipeline.md` for which columns/rows were used.
 
 ## Project structure
 

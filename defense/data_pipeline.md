@@ -11,9 +11,9 @@
 
 | File | Rows | Size | What it is |
 |------|----:|----:|------------|
-| `data/hotel_bookings.csv` | **119,390** | 17 MB | **Raw** Kaggle dataset, untouched. Both Resort and City Hotel, cancelled and non-cancelled, every column the original authors published. |
-| `data/filtered_bookings.csv` | **28,938** | 4.3 MB | **Filtered** subset — only the rows we kept after applying the two business filters. Same 32 columns plus a parsed `arrival_date`. This file proves what entered the pipeline. |
-| `data/daily_prices.csv` | **793** | 22 KB | **Training set** — one row per arrival date with the average ADR across all bookings that day, in Prophet's required `(ds, y)` format. **This is what Prophet actually fits on.** |
+| `data/hotel_bookings.csv` | **119,390** | 17 MB | **Raw** Kaggle dataset, untouched. Both Resort and City Hotel, cancelled and non-cancelled, every guest country, every column the original authors published. |
+| `data/filtered_bookings.csv` | **15,079** | 2.3 MB | **Filtered** subset — Resort Hotel + non-cancelled + guest from a country geographically close to Sitges. Same 32 columns plus a parsed `arrival_date`. This file proves what entered the pipeline. |
+| `data/daily_prices.csv` | **792** | 22 KB | **Training set** — one row per arrival date with the average ADR across the kept bookings that day, in Prophet's required `(ds, y)` format. **This is what Prophet actually fits on.** |
 
 The filtering pipeline is fully reproducible from `scripts/01_prepare_data.py`. Every drop is annotated with a row count.
 
@@ -32,21 +32,39 @@ The filtering pipeline is fully reproducible from `scripts/01_prepare_data.py`. 
   ▼
  28,938  rows — only bookings that actually generated revenue
   │
+  │  filter 3:  country ∈ {ESP, PRT, FRA, ITA, AND}
+  │             (HotelMar is in Sitges, Spain — keep the home market
+  │              and its 4 closest geographic neighbours)
+  ▼
+ 15,079  rows — Iberian + French + Italian + Andorran guests
+  │
   │  parse arrival_date from year + month + day_of_month
   │  save to filtered_bookings.csv
   │
   │  groupby(arrival_date) → mean(adr)
   ▼
-    793  daily rows — one number per day, the average price
+    792  daily rows — one number per day, the average price
   │
-  │  filter 3:  10 ≤ adr ≤ 500  (price sanity bounds)
+  │  filter 4:  10 ≤ adr ≤ 500  (price sanity bounds)
   ▼
-    793  daily rows — none dropped, all daily averages were sensible
+    792  daily rows — none dropped, all daily averages were sensible
   │
   │  rename columns for Prophet: ds, y
   ▼
-    793  rows in daily_prices.csv  ◄── what Prophet fits on
+    792  rows in daily_prices.csv  ◄── what Prophet fits on
 ```
+
+**Why country-filter at all?** The raw Kaggle dataset is from a
+**Portuguese resort in the Algarve**. Its biggest single guest
+segment is British (5,923 of 28,938 = 20 %), followed by Portuguese
+domestic, Irish, German, Dutch, and so on. HotelMar is a
+**Spanish resort in Sitges** — its actual market won't look the
+same. Keeping only the **Iberian + nearest neighbours** strips out
+the long-haul UK/IE/DE/Brazil traffic whose travel patterns
+(book-far-in-advance, longer stays, summer-only) aren't
+representative of a Mediterranean Spanish resort's mix. The
+filtered guest pool is more demographically aligned with what a
+Sitges direct-booking site would actually see.
 
 ---
 
@@ -83,15 +101,16 @@ for an arrival date gives the market-clearing price of a Resort
 Hotel night on that date, which is exactly the thing AI pricing
 should learn and predict.
 
-### `hotel` and `is_canceled` — used to **filter**, not as features
+### `hotel`, `is_canceled`, and `country` — used to **filter**, not as features
 
 | Raw column | Why we filter on it |
 |---|---|
 | `hotel` | The dataset bundles two hotels — a Lisbon city hotel and an Algarve resort. HotelMar is a **resort in Sitges** (Mediterranean coast), so the Algarve resort's seasonality (peak summer, quiet winter, weekend lift) is the right analog. The city hotel's pattern is different (more uniform across the year, business-traveler weekly cycle). Mixing them would smear both signals. |
 | `is_canceled` | A cancelled booking represents **no revenue** and no pricing signal — the price was set, but no money changed hands. Including cancellations would inflate volume without affecting revenue, which is irrelevant for ADR forecasting. |
+| `country` | HotelMar sits in **Sitges (Catalonia, Spain)**. Keep only guests from the home market and the **4 closest neighbouring countries** — `{ESP, PRT, FRA, ITA, AND}` — so the daily-average ADR reflects the kind of guest mix the Sitges hotel would actually serve. Removes UK/IE/DE/NL/BR/etc. long-haul traffic whose travel patterns differ. |
 
-These columns aren't features Prophet sees; they're gatekeepers
-that decide which rows count.
+These three columns aren't features Prophet sees; they're
+gatekeepers that decide which rows count toward the daily average.
 
 ---
 
@@ -114,8 +133,12 @@ were left out on purpose. Here's the full audit:
 |---|---|
 | `adults`, `children`, `babies` | Party composition. Doesn't drive nightly room rate (the room costs the same whether 1 or 4 sleep in it). |
 | `meal` | Meal plan code (BB, HB, FB). Could affect ADR if half-board uplifts are bundled in, but the dataset's ADR is reported as a single number — separating bundles is out of scope for an MVP. |
-| `country` | Guest origin. Predictive of cancellation risk, not of nightly market price. |
 | `is_repeated_guest`, `previous_cancellations`, `previous_bookings_not_canceled`, `customer_type` | Loyalty / segmentation features. Useful for CRM and retention modeling — **Phase 3** of the digital transformation programme, not the pricing MVP. |
+
+(Note: `country` doesn't appear here — it's already used as a
+**filter** column above, narrowing the dataset to nearby-market
+guests. We don't pass it to Prophet as a per-row feature, but it
+absolutely shapes which rows enter the daily averages.)
 
 ### Distribution & operational fields
 
@@ -199,9 +222,10 @@ auditable in the script.
 
 - Open [data/filtered_bookings.csv](../data/filtered_bookings.csv)
   and verify: every row has `hotel == "Resort Hotel"`, every row has
-  `is_canceled == 0`, and the row count is **28,938**.
+  `is_canceled == 0`, every row has `country` in
+  `{ESP, PRT, FRA, ITA, AND}`, and the row count is **15,079**.
 - Open [data/daily_prices.csv](../data/daily_prices.csv) and verify
-  exactly **2 columns** (`ds`, `y`), **793 rows**.
+  exactly **2 columns** (`ds`, `y`), **792 rows**.
 - Re-run [`scripts/01_prepare_data.py`](../scripts/01_prepare_data.py)
   and confirm both files regenerate identically. The pipeline is
   deterministic — no random sampling, no model in the loop.

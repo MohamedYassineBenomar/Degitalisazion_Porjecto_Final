@@ -27,6 +27,20 @@ OUT_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 MIN_PRICE = 10.0
 MAX_PRICE = 500.0
 
+# Geographic locality filter — keep only guests from countries whose
+# travel patterns are most representative of HotelMar's likely actual
+# market. HotelMar is in Sitges (Catalonia, Spain), so we keep:
+#   ESP — same country (the home market)
+#   PRT — direct land neighbour (Iberian peninsula)
+#   FRA — direct land neighbour (northern border)
+#   ITA — Mediterranean neighbour
+#   AND — direct land neighbour (Andorra, between ES and FR)
+# Removing far-away guest countries (UK, Germany, US, Brazil, etc.)
+# isn't to dismiss those segments — they're just modeled in the Kaggle
+# Algarve resort whose travel patterns are slightly different from a
+# Sitges resort's. ISO 3166-1 alpha-3 codes.
+NEARBY_COUNTRIES = {"ESP", "PRT", "FRA", "ITA", "AND"}
+
 
 def main() -> None:
     print(f"Loading {RAW_CSV} ...")
@@ -41,6 +55,10 @@ def main() -> None:
     #    generated revenue.
     df = df[df["is_canceled"] == 0]
     print(f"  after dropping cancellations: {len(df):,}")
+
+    # 2b. Keep only guests from countries close to HotelMar (Sitges).
+    df = df[df["country"].isin(NEARBY_COUNTRIES)]
+    print(f"  after country filter {sorted(NEARBY_COUNTRIES)}: {len(df):,}")
 
     # 3. Build a real date column from the three arrival_date_* fields.
     #    arrival_date_month is a month name ("January", "February", ...).
