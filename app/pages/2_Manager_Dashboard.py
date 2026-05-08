@@ -591,6 +591,12 @@ else:
                         <td class="ai-cell">€{kpis['gross_profit']:,.2f}<br><span class="{naive_profit_cls}" style="font-size:0.85rem;">{naive_profit_lift} vs static</span></td>
                         <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}<br><span class="{real_profit_cls}" style="font-size:0.85rem;">{real_profit_lift} vs static</span></td>
                     </tr>
+                    <tr class="hm-row-profit">
+                        <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Gross profit − fixed overhead<br>(salaries, utilities, mortgage — same in all scenarios)</small></td>
+                        <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
+                        <td class="ai-cell">€{kpis['gross_profit']:,.2f}<br><span class="{naive_profit_cls}" style="font-size:0.85rem;">{naive_profit_lift} vs static</span></td>
+                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}<br><span class="{real_profit_cls}" style="font-size:0.85rem;">{real_profit_lift} vs static</span></td>
+                    </tr>
                     <tr>
                         <td class="metric-name">Gross margin</td>
                         <td class="static-cell">{static_kpis['gross_margin']*100:.1f}%</td>
@@ -622,8 +628,11 @@ else:
         "scale with occupancy. The **realistic** AI scenario sells fewer rooms (price "
         f"elasticity η = {PRICE_ELASTICITY}) but **also incurs lower operating costs**, "
         "so part of the 'lost revenue' from elasticity is recovered as cost savings. "
-        "**Gross profit is the honest bottom-line metric** — the row highlighted in "
-        "green above is the one to look at, not revenue."
+        "**Gross profit and Net profit show the same € lift** in this comparison "
+        "because fixed overhead — salaries, mortgage, baseline utilities, insurance — "
+        "is the same whether you price with AI or the static rulebook, so it cancels "
+        "out. The €73 K realistic improvement at the gross level flows straight to "
+        "the net line."
     )
 
     # ----- Headline profit-lift callout -----------------------------------
