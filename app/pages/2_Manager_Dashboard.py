@@ -195,6 +195,17 @@ st.markdown(
         .hm-compare .diff-up   { background: #d4f5dc; }   /* soft green */
         .hm-compare .diff-down { background: #fbd7d7; }   /* soft red   */
         .hm-compare .diff-flat { background: #f0f0f0; color: #000; }
+        /* Avg price / night gets a cautionary orange — pricing up is the
+           AI's job, but it's not unambiguously good (elasticity costs us
+           bookings), so it's flagged neutral rather than green. */
+        .hm-compare .diff-orange { background: #ffd9a8; color: #000; }
+        /* Net profit is the headline metric — gets the strongest signal:
+           solid dark green band with white text. */
+        .hm-compare .diff-headline {
+            background: #1E7C2F;
+            color: #fff;
+            font-weight: 800;
+        }
 
         /* Highlight the gross-profit row — it's the bottom line. */
         .hm-compare tr.hm-row-profit td {
@@ -541,31 +552,46 @@ else:
     static_kpis = compute_static_baseline_kpis(bookings_df)
     realistic_kpis = compute_elasticity_adjusted_kpis(bookings_df)
 
-    def diff_cell(static_v: float, ai_v: float, fmt: str) -> str:
-        """Render the right-hand 'Difference' cell:
-           - green background if AI value > static
-           - red   background if AI value < static
-           - grey  background if essentially equal
-           Text stays black on every tint. The numeric value is the
-           signed difference (ai - static), formatted via `fmt`.
+    def diff_cell(static_v: float, ai_v: float, fmt: str, mode: str = "default") -> str:
+        """Render the right-hand 'Difference' cell.
+
+        mode='default'  — up = green '+', down = red '−', text black.
+        mode='cost'     — invert the sign for display: a DROP in cost is a
+                          benefit, so we show it as green '+savings'. A rise
+                          in cost shows as red '−€extra'.
+        mode='orange'   — always orange background (cautionary), text black.
+                          Sign is the raw arithmetic sign.
+        mode='headline' — always solid dark green (#1E7C2F) with white text.
+                          Used for the net-profit row, the bottom-line metric.
+                          Sign is the raw arithmetic sign.
         """
-        diff = ai_v - static_v
-        if abs(diff) < 0.005:
-            return f'<td class="diff-cell diff-flat">no change</td>'
-        cls = "diff-up" if diff > 0 else "diff-down"
-        sign = "+" if diff > 0 else "−"
-        body = fmt.format(abs(diff))
+        raw = ai_v - static_v
+        if abs(raw) < 0.005:
+            return '<td class="diff-cell diff-flat">no change</td>'
+
+        # For 'cost' rows we display the impact-on-profit number, which is
+        # the negative of the raw difference. Saving = +EUR_saved.
+        display_diff = -raw if mode == "cost" else raw
+        sign = "+" if display_diff > 0 else "−"
+        body = fmt.format(abs(display_diff))
+
+        if mode == "orange":
+            cls = "diff-orange"
+        elif mode == "headline":
+            cls = "diff-headline"
+        else:
+            cls = "diff-up" if display_diff > 0 else "diff-down"
+
         return f'<td class="diff-cell {cls}">{sign}{body}</td>'
 
     # Pre-render every Difference cell so the f-string below stays clean.
     d_bookings  = diff_cell(static_kpis["total_bookings"],       realistic_kpis["total_bookings"],       "{:,.0f}")
     d_revenue   = diff_cell(static_kpis["total_revenue"],        realistic_kpis["total_revenue"],        "€{:,.2f}")
-    d_costs     = diff_cell(static_kpis["total_variable_cost"],  realistic_kpis["total_variable_cost"],  "€{:,.2f}")
-    d_profit    = diff_cell(static_kpis["gross_profit"],         realistic_kpis["gross_profit"],         "€{:,.2f}")
-    d_netprofit = d_profit  # net = gross in this comparison
-    d_margin    = diff_cell(static_kpis["gross_margin"]*100,     realistic_kpis["gross_margin"]*100,     "{:.1f} pp")
-    d_price     = diff_cell(static_kpis["avg_price"],            realistic_kpis["avg_price"],            "€{:,.2f}")
-    d_occupancy = diff_cell(static_kpis["avg_occupancy"]*100,    realistic_kpis["avg_occupancy"]*100,    "{:.1f} pp")
+    d_costs     = diff_cell(static_kpis["total_variable_cost"],  realistic_kpis["total_variable_cost"],  "€{:,.2f}", mode="cost")
+    d_margin    = diff_cell(static_kpis["gross_margin"]*100,     realistic_kpis["gross_margin"]*100,     "{:.1f}%")
+    d_price     = diff_cell(static_kpis["avg_price"],            realistic_kpis["avg_price"],            "€{:,.2f}", mode="orange")
+    d_occupancy = diff_cell(static_kpis["avg_occupancy"]*100,    realistic_kpis["avg_occupancy"]*100,    "{:.1f}%")
+    d_netprofit = diff_cell(static_kpis["gross_profit"],         realistic_kpis["gross_profit"],         "€{:,.2f}", mode="headline")
 
     st.markdown(
         f"""
@@ -598,18 +624,6 @@ else:
                         <td class="ai-cell">€{realistic_kpis['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{realistic_kpis['room_nights']:,.0f} room-nights</span></td>
                         {d_costs}
                     </tr>
-                    <tr class="hm-row-profit">
-                        <td class="metric-name">Gross profit</td>
-                        <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
-                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
-                        {d_profit}
-                    </tr>
-                    <tr class="hm-row-profit">
-                        <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Gross profit − fixed overhead<br>(salaries, utilities, mortgage — same in all scenarios)</small></td>
-                        <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
-                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
-                        {d_netprofit}
-                    </tr>
                     <tr>
                         <td class="metric-name">Gross margin</td>
                         <td class="static-cell">{static_kpis['gross_margin']*100:.1f}%</td>
@@ -627,6 +641,12 @@ else:
                         <td class="static-cell">{static_kpis['avg_occupancy']*100:.1f}%</td>
                         <td class="ai-cell">{realistic_kpis['avg_occupancy']*100:.1f}%</td>
                         {d_occupancy}
+                    </tr>
+                    <tr class="hm-row-profit">
+                        <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Revenue − variable costs − fixed overhead<br>(fixed overhead is the same in all scenarios, so it cancels)</small></td>
+                        <td class="static-cell">€{static_kpis['gross_profit']:,.2f}</td>
+                        <td class="ai-cell">€{realistic_kpis['gross_profit']:,.2f}</td>
+                        {d_netprofit}
                     </tr>
                 </tbody>
             </table>
