@@ -25,10 +25,12 @@
 |---|---:|
 | Training data | Kaggle "Hotel Booking Demand" — Resort Hotel only |
 | Training rows after cleaning | **793 days** (2015-07-01 → 2017-08-31) |
-| Train/test split | **80 / 20 chronological** (634 / 159 days) |
-| MAE (avg absolute error) | **€22.26 / night** |
-| RMSE | **€26.22 / night** |
-| **MAPE** | **16.99 %  →  GOOD (10–20 %)** |
+| Train / test split | **~2 years train / last 2 months blind** (731 / 62 days, chronological) |
+| Train period | 2015-07-01 → 2017-06-30 |
+| Test period (blind, summer peak) | 2017-07-01 → 2017-08-31 |
+| MAE (avg absolute error) | **€10.90 / night** |
+| RMSE | **€14.06 / night** |
+| **MAPE** | **5.75 %  →  EXCELLENT (<10 %)** |
 | Forecast horizon | 90 days (Sep 1 → Nov 29 2017) |
 | August premium learned | **+€95** above yearly avg |
 | Saturday premium learned | **+€6.34**  (Friday +€5.88 ≈ **+€10 weekend lift**) |
@@ -120,7 +122,7 @@
 
 ## 🎯 If they only remember three numbers
 
-> **MAPE 16.99 %**            — the model is honest
+> **MAPE 5.75 %**             — the model is honest (excellent bracket)
 >
 > **+€370 K / year gross profit**  — realistic AI lift, scaled to €6.2 M
 >

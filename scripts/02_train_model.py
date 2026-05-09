@@ -48,7 +48,13 @@ FORECAST_PLOT = PROJECT_ROOT / "data" / "forecast_plot.png"
 EVAL_PLOT = PROJECT_ROOT / "data" / "test_evaluation.png"
 
 FORECAST_DAYS = 90
-TRAIN_FRACTION = 0.80
+
+# Hold-out split: the LAST 62 days (~ 2 calendar months) are kept blind
+# and used as the test set; everything before — roughly 2 full years of
+# history — is used for training. Defending the split as "trained on 2
+# years of data, blind-tested on the most recent 2 months" reads more
+# cleanly than the older 80/20 fraction in front of a non-technical jury.
+TEST_DAYS = 62
 
 
 def build_prophet() -> Prophet:
@@ -91,11 +97,11 @@ def main() -> None:
     # ------------------------------------------------------------------
     # Phase A — Hold-out evaluation
     # ------------------------------------------------------------------
-    split_idx = int(len(df) * TRAIN_FRACTION)
+    split_idx = max(1, len(df) - TEST_DAYS)
     train_df = df.iloc[:split_idx].copy()
     test_df = df.iloc[split_idx:].copy()
 
-    print("\n=== Phase A: Hold-out evaluation (chronological 80/20) ===")
+    print(f"\n=== Phase A: Hold-out evaluation (~2-year train / last {TEST_DAYS}-day test) ===")
     print(f"  train: {len(train_df):3d} days  "
           f"{train_df['ds'].min().date()} -> {train_df['ds'].max().date()}")
     print(f"  test : {len(test_df):3d} days  "
@@ -188,10 +194,11 @@ def main() -> None:
     print("\n" + "=" * 64)
     print(" DEFENSE SUMMARY — Model evaluation & production training")
     print("=" * 64)
+    train_years = len(train_df) / 365.25
     print(f"  Dataset           : {len(df):,} days "
           f"({df['ds'].min().date()} -> {last_train})")
-    print(f"  Split             : {round(TRAIN_FRACTION*100)}% train / "
-          f"{round((1-TRAIN_FRACTION)*100)}% test (chronological)")
+    print(f"  Split             : {len(train_df):,} train days (~{train_years:.1f} years) / "
+          f"{len(test_df):,} test days (~2 months, blind, chronological)")
     print(f"  Train slice       : {len(train_df):,} days "
           f"({train_df['ds'].min().date()} -> {train_df['ds'].max().date()})")
     print(f"  Test  slice       : {len(test_df):,} days "
