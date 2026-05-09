@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.9.1-blind-test-table"
+APP_BUILD = "v1.10-blind-test-yoy-chart"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

@@ -44,6 +44,7 @@ DEMO_PASSWORD = "admin123"
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
 HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
+BLIND_TEST_CSV = PROJECT_ROOT / "data" / "blind_test_predictions.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -716,6 +717,96 @@ else:
         """,
         unsafe_allow_html=True,
     )
+
+
+# -----------------------------------------------------------------------------
+# Section 3a — Blind test forecast vs same period last year
+# Zoomed-in chart of the 62-day held-out window: actual prices that
+# really happened, AI predictions made before seeing them, and the
+# year-earlier overlay for context. The picture behind MAPE 5.75 %.
+# -----------------------------------------------------------------------------
+st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
+st.subheader("Blind-test forecast vs same period last year (Jul – Aug 2017)")
+
+bt_pred = pd.read_csv(BLIND_TEST_CSV, parse_dates=["ds"])
+
+# Year-over-year overlay: take Jul – Aug 2016 actuals from the historical
+# series and shift forward 12 months so they sit on top of the 2017 dates.
+yoy_window_start = bt_pred["ds"].min() - pd.DateOffset(years=1)
+yoy_window_end = bt_pred["ds"].max() - pd.DateOffset(years=1)
+yoy_2016 = history[
+    (history["ds"] >= yoy_window_start) & (history["ds"] <= yoy_window_end)
+].copy()
+yoy_2016["ds_shifted"] = yoy_2016["ds"] + pd.DateOffset(years=1)
+
+fig_bt_chart = go.Figure()
+
+# 80% confidence band on the AI predictions (drawn first, sits in the back).
+fig_bt_chart.add_trace(go.Scatter(
+    x=list(bt_pred["ds"]) + list(bt_pred["ds"][::-1]),
+    y=list(bt_pred["yhat_upper"]) + list(bt_pred["yhat_lower"][::-1]),
+    fill="toself",
+    fillcolor="rgba(230,126,34,0.18)",
+    line=dict(color="rgba(0,0,0,0)"),
+    hoverinfo="skip",
+    name="80% interval",
+    showlegend=True,
+))
+
+# 2016 actuals overlaid at the 2017 calendar position (green dashed).
+fig_bt_chart.add_trace(go.Scatter(
+    x=yoy_2016["ds_shifted"], y=yoy_2016["y"],
+    mode="lines",
+    line=dict(color="#27ae60", width=1.6, dash="dash"),
+    name="Same period last year (2016 actuals)",
+    hovertemplate="%{x|%d %b 2017} (was %{x|%d %b 2016})<br>€%{y:.2f}<extra></extra>",
+))
+
+# Real 2017 actuals (the truth Prophet was tested against).
+fig_bt_chart.add_trace(go.Scatter(
+    x=bt_pred["ds"], y=bt_pred["y_actual"],
+    mode="lines",
+    line=dict(color="#3c91b3", width=2),
+    name="Actual (2017)",
+))
+
+# AI's blind-test prediction.
+fig_bt_chart.add_trace(go.Scatter(
+    x=bt_pred["ds"], y=bt_pred["yhat"],
+    mode="lines",
+    line=dict(color="#e67e22", width=2.5),
+    name="AI blind-test prediction",
+))
+
+fig_bt_chart.update_layout(
+    height=420,
+    margin=dict(l=20, r=20, t=20, b=20),
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+    legend=dict(
+        orientation="v",
+        yanchor="top", y=0.99,
+        xanchor="left", x=0.01,
+        bgcolor="rgba(255,255,255,0.92)",
+        bordercolor="#e5edf2",
+        borderwidth=1,
+        font=dict(size=12),
+    ),
+    xaxis=dict(title="Date (2017)", gridcolor="#e9eef3"),
+    yaxis=dict(title="Price (EUR)", gridcolor="#e9eef3"),
+    hovermode="x unified",
+)
+st.plotly_chart(fig_bt_chart, use_container_width=True)
+
+st.caption(
+    "Zoomed-in view of the 62 days the model never saw during training. "
+    "**Blue:** real 2017 ADR (the truth). **Orange:** what Prophet "
+    "predicted using only data up to 30 June 2017. **Green dashed:** "
+    "actual prices on the same calendar dates one year earlier (2016), "
+    "for context. The orange-on-blue overlap is the picture behind "
+    "**MAPE 5.75 %** — predictions land within ±6 % of the truth even "
+    "though the model never saw these dates."
+)
 
 
 # -----------------------------------------------------------------------------

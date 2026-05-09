@@ -46,6 +46,7 @@ MODEL_PATH = PROJECT_ROOT / "models" / "price_model.pkl"
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
 FORECAST_PLOT = PROJECT_ROOT / "data" / "forecast_plot.png"
 EVAL_PLOT = PROJECT_ROOT / "data" / "test_evaluation.png"
+BLIND_TEST_CSV = PROJECT_ROOT / "data" / "blind_test_predictions.csv"
 
 FORECAST_DAYS = 90
 
@@ -130,6 +131,14 @@ def main() -> None:
     print(f"  RMSE (root mean sq error)  : {rmse:7.2f} EUR")
     print(f"  MAPE (avg % error)         : {mape:7.2f} %")
     print(f"  -> quality                 : {quality_label(mape)}")
+
+    # Persist the blind-test merged frame so the dashboard can chart
+    # actual vs predicted on the same dates without re-running the eval.
+    blind_out = merged[["ds", "y", "yhat", "yhat_lower", "yhat_upper"]].rename(
+        columns={"y": "y_actual"}
+    )
+    blind_out.to_csv(BLIND_TEST_CSV, index=False)
+    print(f"  blind-test csv  -> {BLIND_TEST_CSV}")
 
     # Eval plot: training history (grey), test actual (blue), test predicted
     # (orange), 80% interval as orange band.
