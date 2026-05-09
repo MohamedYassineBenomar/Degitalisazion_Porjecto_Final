@@ -45,6 +45,42 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
 HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 
+
+# ---------------------------------------------------------------------------
+# Shared helper used by both KPI tables (full-window and blind-test-only).
+# ---------------------------------------------------------------------------
+def diff_cell(static_v: float, ai_v: float, fmt: str, mode: str = "default") -> str:
+    """Render the right-hand 'Difference' cell of a comparison table.
+
+    mode='default'  — up = green '+', down = red '−', text black.
+    mode='cost'     — invert the sign for display: a DROP in cost is a
+                      benefit, so we show it as green '+savings'. A rise
+                      in cost shows as red '−€extra'.
+    mode='orange'   — always orange background (cautionary), text black.
+                      Sign is the raw arithmetic sign.
+    mode='headline' — always solid dark green (#1E7C2F) with white text.
+                      Used for the net-profit row, the bottom-line metric.
+                      Sign is the raw arithmetic sign.
+    """
+    raw = ai_v - static_v
+    if abs(raw) < 0.005:
+        return '<td class="diff-cell diff-flat">no change</td>'
+
+    # For 'cost' rows we display the impact-on-profit number, which is the
+    # negative of the raw difference. Saving = +EUR_saved.
+    display_diff = -raw if mode == "cost" else raw
+    sign = "+" if display_diff > 0 else "−"
+    body = fmt.format(abs(display_diff))
+
+    if mode == "orange":
+        cls = "diff-orange"
+    elif mode == "headline":
+        cls = "diff-headline"
+    else:
+        cls = "diff-up" if display_diff > 0 else "diff-down"
+
+    return f'<td class="diff-cell {cls}">{sign}{body}</td>'
+
 # ---------------------------------------------------------------------------
 # Page config + shared brand styles (kept consistent with the guest page).
 # ---------------------------------------------------------------------------
@@ -560,38 +596,6 @@ else:
     static_kpis = compute_static_baseline_kpis(bookings_df)
     realistic_kpis = compute_elasticity_adjusted_kpis(bookings_df)
 
-    def diff_cell(static_v: float, ai_v: float, fmt: str, mode: str = "default") -> str:
-        """Render the right-hand 'Difference' cell.
-
-        mode='default'  — up = green '+', down = red '−', text black.
-        mode='cost'     — invert the sign for display: a DROP in cost is a
-                          benefit, so we show it as green '+savings'. A rise
-                          in cost shows as red '−€extra'.
-        mode='orange'   — always orange background (cautionary), text black.
-                          Sign is the raw arithmetic sign.
-        mode='headline' — always solid dark green (#1E7C2F) with white text.
-                          Used for the net-profit row, the bottom-line metric.
-                          Sign is the raw arithmetic sign.
-        """
-        raw = ai_v - static_v
-        if abs(raw) < 0.005:
-            return '<td class="diff-cell diff-flat">no change</td>'
-
-        # For 'cost' rows we display the impact-on-profit number, which is
-        # the negative of the raw difference. Saving = +EUR_saved.
-        display_diff = -raw if mode == "cost" else raw
-        sign = "+" if display_diff > 0 else "−"
-        body = fmt.format(abs(display_diff))
-
-        if mode == "orange":
-            cls = "diff-orange"
-        elif mode == "headline":
-            cls = "diff-headline"
-        else:
-            cls = "diff-up" if display_diff > 0 else "diff-down"
-
-        return f'<td class="diff-cell {cls}">{sign}{body}</td>'
-
     # Pre-render every Difference cell so the f-string below stays clean.
     d_bookings  = diff_cell(static_kpis["total_bookings"],       realistic_kpis["total_bookings"],       "{:,.0f}")
     d_revenue   = diff_cell(static_kpis["total_revenue"],        realistic_kpis["total_revenue"],        "€{:,.2f}")
@@ -715,12 +719,10 @@ else:
 
 
 # -----------------------------------------------------------------------------
-# Section 3b — KPI bar chart on the BLIND TEST window only
-# Same comparison as the table above, but restricted to the 62 days
-# (1 Jul – 31 Aug 2017) the model never saw during training. That's the
-# strictest possible economic claim: not just "the AI lifts profit on
-# the demo dataset", but "the AI lifts profit on the dates we proved
-# it generalizes to with MAPE 5.75 %".
+# Section 3b — KPI table on the BLIND TEST window only
+# Mirror of the Section 3 table, but restricted to the 62 days
+# (1 Jul – 31 Aug 2017) the model never saw during training. Same
+# layout, same diff colour conventions — just a stricter scope.
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
 st.subheader("Profit comparison — blind test window only (Jul – Aug 2017)")
@@ -739,78 +741,81 @@ if not bookings_df.empty:
             "window. Reseed the database to populate it."
         )
     else:
+        from utils import VARIABLE_COST_PER_ROOM_NIGHT  # noqa: F811
+
         bt_static = compute_static_baseline_kpis(blind_df)
         bt_real = compute_elasticity_adjusted_kpis(blind_df)
 
-        metric_labels = ["Revenue", "Variable costs", "Net profit"]
-        without_ai_vals = [
-            bt_static["total_revenue"],
-            bt_static["total_variable_cost"],
-            bt_static["gross_profit"],
-        ]
-        with_ai_vals = [
-            bt_real["total_revenue"],
-            bt_real["total_variable_cost"],
-            bt_real["gross_profit"],
-        ]
-        diffs = [a - b for a, b in zip(with_ai_vals, without_ai_vals)]
-        diff_labels = [f"{'+' if d >= 0 else '−'}€{abs(d):,.0f}" for d in diffs]
+        # Pre-render every Difference cell — same modes as the full-window table.
+        bt_d_bookings  = diff_cell(bt_static["total_bookings"],       bt_real["total_bookings"],       "{:,.0f}")
+        bt_d_revenue   = diff_cell(bt_static["total_revenue"],        bt_real["total_revenue"],        "€{:,.2f}")
+        bt_d_costs     = diff_cell(bt_static["total_variable_cost"],  bt_real["total_variable_cost"],  "€{:,.2f}", mode="cost")
+        bt_d_margin    = diff_cell(bt_static["gross_margin"]*100,     bt_real["gross_margin"]*100,     "{:.1f}%")
+        bt_d_price     = diff_cell(bt_static["avg_price"],            bt_real["avg_price"],            "€{:,.2f}", mode="orange")
+        bt_d_occupancy = diff_cell(bt_static["avg_occupancy"]*100,    bt_real["avg_occupancy"]*100,    "{:.1f}%")
+        bt_d_netprofit = diff_cell(bt_static["gross_profit"],         bt_real["gross_profit"],         "€{:,.2f}", mode="headline")
 
-        fig_bt = go.Figure()
-        fig_bt.add_trace(go.Bar(
-            name="Without AI (static rulebook)",
-            x=metric_labels,
-            y=without_ai_vals,
-            marker_color="#7f8c8d",
-            text=[f"€{v:,.0f}" for v in without_ai_vals],
-            textposition="outside",
-            hovertemplate="<b>%{x}</b><br>Without AI: €%{y:,.2f}<extra></extra>",
-        ))
-        fig_bt.add_trace(go.Bar(
-            name="With AI (elasticity-adjusted)",
-            x=metric_labels,
-            y=with_ai_vals,
-            marker_color="#1E7C2F",
-            text=[f"€{v:,.0f}" for v in with_ai_vals],
-            textposition="outside",
-            hovertemplate="<b>%{x}</b><br>With AI: €%{y:,.2f}<extra></extra>",
-        ))
-        # Per-metric difference annotation above each bar pair.
-        for i, (lbl, d) in enumerate(zip(metric_labels, diff_labels)):
-            color = "#1E7C2F" if diffs[i] >= 0 else "#c0392b"
-            # Variable costs going DOWN is a benefit — flip the color.
-            if lbl == "Variable costs":
-                color = "#1E7C2F" if diffs[i] <= 0 else "#c0392b"
-                # also re-label as a saving
-                d_label = f"{'+' if diffs[i] <= 0 else '−'}€{abs(diffs[i]):,.0f} saved"
-            else:
-                d_label = d
-            fig_bt.add_annotation(
-                x=lbl,
-                y=max(without_ai_vals[i], with_ai_vals[i]) * 1.12,
-                text=f"<b>{d_label}</b>",
-                showarrow=False,
-                font=dict(size=13, color=color),
-            )
-
-        fig_bt.update_layout(
-            barmode="group",
-            height=460,
-            margin=dict(l=20, r=20, t=40, b=20),
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom", y=1.02,
-                xanchor="right", x=1,
-                bgcolor="rgba(255,255,255,0.92)",
-                bordercolor="#e5edf2",
-                borderwidth=1,
-            ),
-            yaxis=dict(title="EUR", gridcolor="#e9eef3"),
-            xaxis=dict(showgrid=False),
+        st.markdown(
+            f"""
+            <div class="hm-compare">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Without AI<small>static seasonal rulebook<br>(monthly avg per month)</small></th>
+                            <th>With AI<small>elasticity-adjusted<br>(η = {PRICE_ELASTICITY})</small></th>
+                            <th>Difference<small>AI − static<br>(green = up, red = down)</small></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="metric-name">Total bookings</td>
+                            <td class="static-cell">{bt_static['total_bookings']:,}</td>
+                            <td class="ai-cell">{bt_real['total_bookings']:,}</td>
+                            {bt_d_bookings}
+                        </tr>
+                        <tr>
+                            <td class="metric-name">Total revenue</td>
+                            <td class="static-cell">€{bt_static['total_revenue']:,.2f}</td>
+                            <td class="ai-cell">€{bt_real['total_revenue']:,.2f}</td>
+                            {bt_d_revenue}
+                        </tr>
+                        <tr>
+                            <td class="metric-name">Variable operating costs<small style="color:#5b6b78;font-weight:400;">€{VARIABLE_COST_PER_ROOM_NIGHT:.0f}/room-night × room-nights sold<br>(housekeeping, supplies, energy, laundry, breakfast)</small></td>
+                            <td class="static-cell">€{bt_static['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{bt_static['room_nights']:,.0f} room-nights</span></td>
+                            <td class="ai-cell">€{bt_real['total_variable_cost']:,.2f}<br><span class="lift-flat" style="font-size:0.82rem;">{bt_real['room_nights']:,.0f} room-nights</span></td>
+                            {bt_d_costs}
+                        </tr>
+                        <tr>
+                            <td class="metric-name">Gross margin</td>
+                            <td class="static-cell">{bt_static['gross_margin']*100:.1f}%</td>
+                            <td class="ai-cell">{bt_real['gross_margin']*100:.1f}%</td>
+                            {bt_d_margin}
+                        </tr>
+                        <tr>
+                            <td class="metric-name">Avg price&nbsp;/&nbsp;night</td>
+                            <td class="static-cell">€{bt_static['avg_price']:,.2f}</td>
+                            <td class="ai-cell">€{bt_real['avg_price']:,.2f}</td>
+                            {bt_d_price}
+                        </tr>
+                        <tr>
+                            <td class="metric-name">Avg occupancy</td>
+                            <td class="static-cell">{bt_static['avg_occupancy']*100:.1f}%</td>
+                            <td class="ai-cell">{bt_real['avg_occupancy']*100:.1f}%</td>
+                            {bt_d_occupancy}
+                        </tr>
+                        <tr class="hm-row-profit">
+                            <td class="metric-name">Net profit<small style="color:#5b6b78;font-weight:400;">= Revenue − variable costs − fixed overhead<br>(fixed overhead is the same in all scenarios, so it cancels)</small></td>
+                            <td class="static-cell"></td>
+                            <td class="ai-cell"></td>
+                            {bt_d_netprofit}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
-        st.plotly_chart(fig_bt, use_container_width=True)
 
         # Headline summary line.
         bt_profit_lift = bt_real["gross_profit"] - bt_static["gross_profit"]
@@ -819,7 +824,7 @@ if not bookings_df.empty:
             if bt_static["gross_profit"] > 0 else 0
         )
         st.caption(
-            f"**Scope.** Same comparison as the full-window table above, but "
+            f"**Scope.** Same comparison as the full-window table above, "
             f"restricted to the **{len(blind_df):,} demo bookings** whose "
             f"check-in falls between **1 Jul – 31 Aug 2017** — exactly the "
             "62-day window the production model **never saw during training** "
