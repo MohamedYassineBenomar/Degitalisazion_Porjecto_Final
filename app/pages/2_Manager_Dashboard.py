@@ -715,6 +715,125 @@ else:
 
 
 # -----------------------------------------------------------------------------
+# Section 3b — KPI bar chart on the BLIND TEST window only
+# Same comparison as the table above, but restricted to the 62 days
+# (1 Jul – 31 Aug 2017) the model never saw during training. That's the
+# strictest possible economic claim: not just "the AI lifts profit on
+# the demo dataset", but "the AI lifts profit on the dates we proved
+# it generalizes to with MAPE 5.75 %".
+# -----------------------------------------------------------------------------
+st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
+st.subheader("Profit comparison — blind test window only (Jul – Aug 2017)")
+
+if not bookings_df.empty:
+    BLIND_START = pd.Timestamp("2017-07-01")
+    BLIND_END = pd.Timestamp("2017-08-31")
+    blind_df = bookings_df[
+        (bookings_df["check_in"] >= BLIND_START)
+        & (bookings_df["check_in"] <= BLIND_END)
+    ].copy()
+
+    if blind_df.empty:
+        st.info(
+            "No demo bookings fall inside the 1 Jul – 31 Aug 2017 blind-test "
+            "window. Reseed the database to populate it."
+        )
+    else:
+        bt_static = compute_static_baseline_kpis(blind_df)
+        bt_real = compute_elasticity_adjusted_kpis(blind_df)
+
+        metric_labels = ["Revenue", "Variable costs", "Net profit"]
+        without_ai_vals = [
+            bt_static["total_revenue"],
+            bt_static["total_variable_cost"],
+            bt_static["gross_profit"],
+        ]
+        with_ai_vals = [
+            bt_real["total_revenue"],
+            bt_real["total_variable_cost"],
+            bt_real["gross_profit"],
+        ]
+        diffs = [a - b for a, b in zip(with_ai_vals, without_ai_vals)]
+        diff_labels = [f"{'+' if d >= 0 else '−'}€{abs(d):,.0f}" for d in diffs]
+
+        fig_bt = go.Figure()
+        fig_bt.add_trace(go.Bar(
+            name="Without AI (static rulebook)",
+            x=metric_labels,
+            y=without_ai_vals,
+            marker_color="#7f8c8d",
+            text=[f"€{v:,.0f}" for v in without_ai_vals],
+            textposition="outside",
+            hovertemplate="<b>%{x}</b><br>Without AI: €%{y:,.2f}<extra></extra>",
+        ))
+        fig_bt.add_trace(go.Bar(
+            name="With AI (elasticity-adjusted)",
+            x=metric_labels,
+            y=with_ai_vals,
+            marker_color="#1E7C2F",
+            text=[f"€{v:,.0f}" for v in with_ai_vals],
+            textposition="outside",
+            hovertemplate="<b>%{x}</b><br>With AI: €%{y:,.2f}<extra></extra>",
+        ))
+        # Per-metric difference annotation above each bar pair.
+        for i, (lbl, d) in enumerate(zip(metric_labels, diff_labels)):
+            color = "#1E7C2F" if diffs[i] >= 0 else "#c0392b"
+            # Variable costs going DOWN is a benefit — flip the color.
+            if lbl == "Variable costs":
+                color = "#1E7C2F" if diffs[i] <= 0 else "#c0392b"
+                # also re-label as a saving
+                d_label = f"{'+' if diffs[i] <= 0 else '−'}€{abs(diffs[i]):,.0f} saved"
+            else:
+                d_label = d
+            fig_bt.add_annotation(
+                x=lbl,
+                y=max(without_ai_vals[i], with_ai_vals[i]) * 1.12,
+                text=f"<b>{d_label}</b>",
+                showarrow=False,
+                font=dict(size=13, color=color),
+            )
+
+        fig_bt.update_layout(
+            barmode="group",
+            height=460,
+            margin=dict(l=20, r=20, t=40, b=20),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom", y=1.02,
+                xanchor="right", x=1,
+                bgcolor="rgba(255,255,255,0.92)",
+                bordercolor="#e5edf2",
+                borderwidth=1,
+            ),
+            yaxis=dict(title="EUR", gridcolor="#e9eef3"),
+            xaxis=dict(showgrid=False),
+        )
+        st.plotly_chart(fig_bt, use_container_width=True)
+
+        # Headline summary line.
+        bt_profit_lift = bt_real["gross_profit"] - bt_static["gross_profit"]
+        bt_profit_pct = (
+            bt_profit_lift / bt_static["gross_profit"] * 100
+            if bt_static["gross_profit"] > 0 else 0
+        )
+        st.caption(
+            f"**Scope.** Same comparison as the full-window table above, but "
+            f"restricted to the **{len(blind_df):,} demo bookings** whose "
+            f"check-in falls between **1 Jul – 31 Aug 2017** — exactly the "
+            "62-day window the production model **never saw during training** "
+            f"(MAPE on this window: **5.75 %**, our best evaluation metric). "
+            f"On just this slice, AI lifts net profit by "
+            f"**€{bt_profit_lift:,.2f} ({bt_profit_pct:+.1f}%)** — the most "
+            "rigorous version of the headline number, isolated to genuinely "
+            "out-of-sample data. The two summer months are also when the "
+            "uplift matters most: peak season carries the highest absolute "
+            "EUR at risk."
+        )
+
+
+# -----------------------------------------------------------------------------
 # Section 4 — Recent Bookings
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)

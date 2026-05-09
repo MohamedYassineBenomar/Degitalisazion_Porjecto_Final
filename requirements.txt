@@ -3,7 +3,7 @@
 # these requires re-testing on Cloud — Prophet in particular is
 # sensitive to numpy/pandas major-version changes.
 #
-# build: v1.7-2yr-2mo-split
+# build: v1.9-blind-test-kpi-graph
 streamlit==1.57.0
 prophet==1.3.0
 pandas==3.0.2
