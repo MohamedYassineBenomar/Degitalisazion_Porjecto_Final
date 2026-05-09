@@ -43,6 +43,7 @@ DEMO_PASSWORD = "admin123"
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
+FORECAST_FULL_YEAR_CSV = PROJECT_ROOT / "data" / "forecast_full_year.csv"
 HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 
 # ---------------------------------------------------------------------------
@@ -539,6 +540,101 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True,
+)
+
+
+# -----------------------------------------------------------------------------
+# Section 2b — Full-year forecast (next 365 days)
+# Shows the model's strategic outlook all the way through the next
+# summer peak season, so the manager can plan capacity, group rates,
+# and OTA contracts a full year ahead.
+# -----------------------------------------------------------------------------
+st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
+st.subheader("Full-year price forecast — next 365 days")
+
+forecast_year = pd.read_csv(FORECAST_FULL_YEAR_CSV, parse_dates=["ds"])
+forecast_year_only = forecast_year[forecast_year["ds"] > last_train]
+
+# Headline numbers for the year ahead.
+year_avg = float(forecast_year_only["yhat"].mean())
+year_peak_idx = forecast_year_only["yhat"].idxmax()
+year_peak_val = float(forecast_year_only.loc[year_peak_idx, "yhat"])
+year_peak_date = forecast_year_only.loc[year_peak_idx, "ds"]
+year_low_idx = forecast_year_only["yhat"].idxmin()
+year_low_val = float(forecast_year_only.loc[year_low_idx, "yhat"])
+year_low_date = forecast_year_only.loc[year_low_idx, "ds"]
+
+cy1, cy2, cy3 = st.columns(3)
+cy1.metric("Year-ahead avg price", f"€{year_avg:,.2f}",
+           help="Average AI-recommended ADR across the next 365 days.")
+cy2.metric("Year-ahead peak",
+           f"€{year_peak_val:,.2f}",
+           delta=year_peak_date.strftime("%a %d %b %Y"),
+           delta_color="off",
+           help="Highest forecasted single-day price and when it occurs.")
+cy3.metric("Year-ahead trough",
+           f"€{year_low_val:,.2f}",
+           delta=year_low_date.strftime("%a %d %b %Y"),
+           delta_color="off",
+           help="Lowest forecasted single-day price and when it occurs.")
+
+fig_year = go.Figure()
+# 80% confidence band on the full-year forecast (drawn first, in back).
+fig_year.add_trace(go.Scatter(
+    x=list(forecast_year_only["ds"]) + list(forecast_year_only["ds"][::-1]),
+    y=list(forecast_year_only["yhat_upper"]) + list(forecast_year_only["yhat_lower"][::-1]),
+    fill="toself",
+    fillcolor="rgba(230,126,34,0.15)",
+    line=dict(color="rgba(0,0,0,0)"),
+    hoverinfo="skip",
+    name="80% interval",
+    showlegend=True,
+))
+# Historical actuals (full available history).
+fig_year.add_trace(go.Scatter(
+    x=history["ds"], y=history["y"],
+    mode="lines",
+    line=dict(color="#3c91b3", width=1.6),
+    name="Historical (actual)",
+))
+# 365-day AI forecast.
+fig_year.add_trace(go.Scatter(
+    x=forecast_year_only["ds"], y=forecast_year_only["yhat"],
+    mode="lines",
+    line=dict(color="#e67e22", width=2.5),
+    name="AI forecast (365 days ahead)",
+))
+
+fig_year.update_layout(
+    height=460,
+    margin=dict(l=20, r=20, t=20, b=20),
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+    legend=dict(
+        orientation="v",
+        yanchor="top", y=0.99,
+        xanchor="left", x=0.01,
+        bgcolor="rgba(255,255,255,0.92)",
+        bordercolor="#e5edf2",
+        borderwidth=1,
+        font=dict(size=12),
+    ),
+    xaxis=dict(title="Date", gridcolor="#e9eef3"),
+    yaxis=dict(title="Price (EUR)", gridcolor="#e9eef3"),
+    hovermode="x unified",
+)
+st.plotly_chart(fig_year, use_container_width=True)
+
+st.caption(
+    f"**Why a full year?** The 90-day forecast above answers tactical "
+    "questions (what should I price next week?). The 365-day view answers "
+    "**strategic** ones — how to negotiate next year's OTA contract, when "
+    "to schedule renovation downtime, what room-block rate to quote a "
+    "wedding 10 months out. The orange line projects the AI through the "
+    "**next full peak season**, which the model places around "
+    f"**{year_peak_date.strftime('%B %Y')}** at €{year_peak_val:,.2f}/night. "
+    "Uncertainty (the orange band) widens the further out we go — that's "
+    "Prophet being honest about its diminishing confidence."
 )
 
 
