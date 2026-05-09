@@ -45,12 +45,9 @@ INPUT_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 MODEL_PATH = PROJECT_ROOT / "models" / "price_model.pkl"
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
 FORECAST_PLOT = PROJECT_ROOT / "data" / "forecast_plot.png"
-FORECAST_FULL_YEAR_CSV = PROJECT_ROOT / "data" / "forecast_full_year.csv"
-FORECAST_FULL_YEAR_PLOT = PROJECT_ROOT / "data" / "forecast_full_year.png"
 EVAL_PLOT = PROJECT_ROOT / "data" / "test_evaluation.png"
 
 FORECAST_DAYS = 90
-FORECAST_DAYS_FULL_YEAR = 365
 
 # Hold-out split: the LAST 62 days (~ 2 calendar months) are kept blind
 # and used as the test set; everything before — roughly 2 full years of
@@ -189,30 +186,6 @@ def main() -> None:
     print(f"  plot saved    -> {FORECAST_PLOT}")
 
     # ------------------------------------------------------------------
-    # Phase B+ — Full-year forecast (next 365 days)
-    # Same model, just a longer horizon, so the dashboard can show a
-    # year-ahead view that includes the next summer peak season.
-    # ------------------------------------------------------------------
-    print(f"\nGenerating full-year forecast ({FORECAST_DAYS_FULL_YEAR} days) ...")
-    future_year = prod_model.make_future_dataframe(
-        periods=FORECAST_DAYS_FULL_YEAR, freq="D"
-    )
-    forecast_year = prod_model.predict(future_year)
-    forecast_year[["ds", "yhat", "yhat_lower", "yhat_upper"]].to_csv(
-        FORECAST_FULL_YEAR_CSV, index=False
-    )
-    print(f"  full-year csv -> {FORECAST_FULL_YEAR_CSV}")
-
-    fig = prod_model.plot(forecast_year)
-    plt.title("HotelMar — daily ADR forecast (history + 365 days ahead)")
-    plt.xlabel("Date")
-    plt.ylabel("Price (EUR)")
-    fig.tight_layout()
-    fig.savefig(FORECAST_FULL_YEAR_PLOT, dpi=120)
-    plt.close(fig)
-    print(f"  full-year png -> {FORECAST_FULL_YEAR_PLOT}")
-
-    # ------------------------------------------------------------------
     # Defense summary
     # ------------------------------------------------------------------
     last_train = df["ds"].max().date()
@@ -241,11 +214,6 @@ def main() -> None:
     print(f"  90-day forecast   : {fut_only['ds'].min().date()} -> "
           f"{fut_only['ds'].max().date()}  "
           f"(avg EUR {fut_only['yhat'].mean():.2f})")
-    fut_year = forecast_year[forecast_year["ds"] > df["ds"].max()]
-    print(f"  365-day forecast  : {fut_year['ds'].min().date()} -> "
-          f"{fut_year['ds'].max().date()}  "
-          f"(avg EUR {fut_year['yhat'].mean():.2f}, "
-          f"peak EUR {fut_year['yhat'].max():.2f})")
     print("=" * 64)
 
 
