@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.11-ml-dashboard"
+APP_BUILD = "v1.12-sep1-trim"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -44,7 +44,7 @@ LAST_FORECAST_DATE = pd.Timestamp("2017-11-29")  # 90 days past training
 
 # Fixed demo date inside the model's forecast window.
 # In production this would be datetime.today().
-DEMO_DATE = date(2017, 9, 15)
+DEMO_DATE = date(2017, 9, 1)
 
 
 # --- Pricing config --------------------------------------------------------

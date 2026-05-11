@@ -33,7 +33,6 @@ from utils import (  # noqa: E402
     get_all_bookings,
     historical_monthly_avg,
     predict_prices,
-    revenue_per_day,
 )
 
 # ---------------------------------------------------------------------------
@@ -931,66 +930,4 @@ else:
         </div>
         """,
         unsafe_allow_html=True,
-    )
-
-
-# -----------------------------------------------------------------------------
-# Section 4 — Recent Bookings
-# -----------------------------------------------------------------------------
-st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("Recent bookings")
-
-if bookings_df.empty:
-    st.write("_No bookings recorded yet._")
-else:
-    recent = bookings_df.head(20).copy()
-    recent["check_in"] = recent["check_in"].dt.strftime("%d %b %Y")
-    recent["check_out"] = recent["check_out"].dt.strftime("%d %b %Y")
-    recent["created_at"] = recent["created_at"].dt.strftime("%d %b %Y %H:%M")
-    recent["total_price"] = recent["total_price"].round(2)
-    recent = recent.rename(columns={
-        "id": "Ref #", "guest_name": "Guest", "email": "Email",
-        "check_in": "Check-in", "check_out": "Check-out",
-        "room_type": "Room", "total_price": "Total (EUR)",
-        "nights": "Nights", "created_at": "Booked at",
-    })
-    st.dataframe(
-        recent[["Ref #", "Guest", "Email", "Check-in", "Check-out",
-                "Nights", "Room", "Total (EUR)", "Booked at"]],
-        hide_index=True,
-        use_container_width=True,
-    )
-
-
-# -----------------------------------------------------------------------------
-# Section 5 — Revenue by Day
-# -----------------------------------------------------------------------------
-st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("Revenue by day")
-
-rev = revenue_per_day(bookings_df)
-if rev.empty:
-    st.write("_Nothing to chart yet — make a booking first._")
-else:
-    bar = go.Figure()
-    bar.add_trace(go.Bar(
-        x=rev["date"], y=rev["revenue"],
-        marker_color="#3c91b3",
-        name="Revenue (EUR)",
-        hovertemplate="%{x|%a %d %b %Y}<br><b>€%{y:,.2f}</b><extra></extra>",
-    ))
-    bar.update_layout(
-        height=360,
-        margin=dict(l=20, r=20, t=10, b=20),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        xaxis=dict(title="Stay night", gridcolor="#e9eef3"),
-        yaxis=dict(title="Revenue (EUR)", gridcolor="#e9eef3"),
-        showlegend=False,
-    )
-    st.plotly_chart(bar, use_container_width=True)
-    st.caption(
-        f"Daily revenue computed by spreading each booking's total over "
-        f"its stay nights. Total across {len(rev):,} stay nights: "
-        f"€{rev['revenue'].sum():,.2f}."
     )
