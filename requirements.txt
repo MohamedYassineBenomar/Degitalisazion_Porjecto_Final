@@ -3,10 +3,11 @@
 # these requires re-testing on Cloud — Prophet in particular is
 # sensitive to numpy/pandas major-version changes.
 #
-# build: v1.12-sep1-trim
+# build: v1.13-lightgbm-fourier
 streamlit==1.57.0
 prophet==1.3.0
 pandas==3.0.2
 plotly==6.7.0
 numpy==2.4.4
 scikit-learn==1.8.0
+lightgbm==4.6.0

@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.12-sep1-trim"
+APP_BUILD = "v1.13-lightgbm-fourier"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -571,21 +571,53 @@ def load_ml_model():
         return pickle.load(f)
 
 
+@st.cache_resource(show_spinner=False)
+def _ml_history_lookup() -> dict:
+    """{Timestamp: y} lookup for the y_lag_365 feature. Built once from
+    data/daily_prices.csv. Cached across the session."""
+    h = pd.read_csv(HISTORY_CSV, parse_dates=["ds"])
+    return dict(zip(h["ds"], h["y"]))
+
+
 def _ml_date_features(dates) -> pd.DataFrame:
     """Feature matrix for the ML model. Must exactly mirror the columns
-    that scripts/04_train_ml_model.py uses during training, in the same
-    order — sklearn matches features positionally."""
+    that scripts/04_train_ml_model.py builds — same order, same names.
+    LightGBM matches features positionally so column order is the model's
+    input contract."""
+    import numpy as np
     dates = pd.Series(pd.to_datetime(dates)).reset_index(drop=True)
-    return pd.DataFrame({
-        "year":              dates.dt.year,
-        "month":             dates.dt.month,
-        "day_of_month":      dates.dt.day,
-        "day_of_week":       dates.dt.dayofweek,
-        "day_of_year":       dates.dt.dayofyear,
+    df = pd.DataFrame({
+        "year":              dates.dt.year.astype(int),
+        "month":             dates.dt.month.astype(int),
+        "day_of_month":      dates.dt.day.astype(int),
+        "day_of_week":       dates.dt.dayofweek.astype(int),
+        "day_of_year":       dates.dt.dayofyear.astype(int),
         "week_of_year":      dates.dt.isocalendar().week.astype(int),
         "is_weekend":        (dates.dt.dayofweek >= 5).astype(int),
         "days_since_start":  (dates - ML_TRAIN_ORIGIN).dt.days.astype(int),
     })
+    # Yearly Fourier features (3 harmonics).
+    ya = 2 * np.pi * df["day_of_year"] / 365.25
+    df["yearly_sin1"] = np.sin(ya)
+    df["yearly_cos1"] = np.cos(ya)
+    df["yearly_sin2"] = np.sin(2 * ya)
+    df["yearly_cos2"] = np.cos(2 * ya)
+    df["yearly_sin3"] = np.sin(3 * ya)
+    df["yearly_cos3"] = np.cos(3 * ya)
+    # Weekly Fourier features (2 harmonics).
+    wa = 2 * np.pi * df["day_of_week"] / 7
+    df["weekly_sin1"] = np.sin(wa)
+    df["weekly_cos1"] = np.cos(wa)
+    df["weekly_sin2"] = np.sin(2 * wa)
+    df["weekly_cos2"] = np.cos(2 * wa)
+    # y_lag_365: same-day-last-year actual ADR. Looked up from historical
+    # series; falls back to NaN (LightGBM handles natively) for dates we
+    # don't have a year-old record for.
+    lookup = _ml_history_lookup()
+    df["y_lag_365"] = [
+        lookup.get(d - pd.Timedelta(days=365), float("nan")) for d in dates
+    ]
+    return df
 
 
 @st.cache_data(show_spinner=False)
