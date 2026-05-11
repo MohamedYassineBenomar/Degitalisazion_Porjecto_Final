@@ -371,10 +371,95 @@ st.caption(
 
 
 # -----------------------------------------------------------------------------
-# Section 3 — Blind-test profit comparison table (ML-priced)
+# Section 2c — The math behind "higher price -> fewer bookings"
+# Plain-language + LaTeX walk-through of the price-elasticity formula
+# that drives every "with AI / with ML" KPI on this page.
 # -----------------------------------------------------------------------------
 st.markdown('<div class="hm-section"></div>', unsafe_allow_html=True)
-st.subheader("Profit comparison — blind test window only (Jul – Aug 2017)")
+st.subheader("📐 The math: how we model \"higher price → fewer bookings\"")
+
+st.markdown(
+    "When the AI raises a room's price above the static rulebook, **some "
+    "guests will refuse to book at the higher rate**. That's basic economics — "
+    "a demand curve slopes downward. We capture this drop using the standard "
+    "economic measure called **price elasticity of demand**."
+)
+
+st.markdown("**Step 1 — Definition of price elasticity of demand**")
+st.latex(r"\eta \;=\; \frac{\%\,\Delta Q}{\%\,\Delta P} \;=\; \frac{\Delta Q / Q}{\Delta P / P}")
+st.markdown(
+    "- **η (eta)** is the elasticity coefficient.\n"
+    "- **ΔQ / Q** is the *percentage* change in quantity sold (bookings).\n"
+    "- **ΔP / P** is the *percentage* change in price.\n\n"
+    "For any normal good, elasticity is **negative**: a price rise causes "
+    "a quantity drop. The size of η tells you *how sensitive* the market is."
+)
+
+st.markdown("**Step 2 — The value we use for HotelMar**")
+st.latex(r"\eta \;=\; -0.7 \quad \text{(4-star mid-range hotel, industry literature)}")
+st.markdown(
+    "Empirical studies report elasticity between **−0.4 and −0.8** for "
+    "mid-range hotels. We chose **−0.7** (conservative end — more guests "
+    "walk away). **Interpretation:** a **10 % price hike loses 7 % of "
+    "bookings**; a **20 % hike loses 14 %**, and so on."
+)
+
+st.markdown("**Step 3 — Solving the formula for retained bookings**")
+st.markdown(
+    "From the elasticity definition we can isolate the *retention ratio* — "
+    "the fraction of original bookings we keep at the new price:"
+)
+st.latex(r"\frac{Q_{\text{kept}}}{Q_{\text{original}}} \;=\; 1 \;+\; \eta \cdot \frac{\Delta P}{P}")
+
+st.markdown("**Step 4 — Per-booking retention (what the dashboard actually computes)**")
+st.markdown(
+    "For every individual booking $i$ in the demo dataset, we compute:"
+)
+st.latex(r"""
+\text{pct\_change}_i \;=\; \frac{P_{\text{AI},\,i} - P_{\text{static},\,i}}{P_{\text{static},\,i}}
+""")
+st.latex(r"""
+\text{retention}_i \;=\; \max\!\bigl(0,\; \min(1,\; 1 + \eta \cdot \text{pct\_change}_i)\bigr)
+""")
+st.markdown(
+    "- We **clip** the result to the interval **[0, 1]** because a booking "
+    "can't fall below 0 guests, and we don't model demand *expansion* "
+    "when prices drop (a more sophisticated version could).\n"
+    "- The **revenue** contribution of booking $i$ becomes "
+    "$\\text{retention}_i \\times P_{\\text{AI},\\,i}$.\n"
+    "- Summing across all bookings gives the **realistic** revenue, room-"
+    "night and profit numbers in the comparison tables below."
+)
+
+st.markdown("**Worked example — one booking**")
+st.markdown(
+    "Suppose for a particular booking the static rulebook says **€154.53/night** "
+    "and the AI says **€185.50/night**. Plugging into the formulas:"
+)
+st.latex(r"""
+\text{pct\_change} \;=\; \frac{185.50 - 154.53}{154.53} \;=\; +0.200
+\quad (= +20\%)
+""")
+st.latex(r"""
+\text{retention} \;=\; 1 + (-0.7) \cdot 0.200 \;=\; 1 - 0.14 \;=\; \mathbf{0.86}
+""")
+st.markdown(
+    "**86 %** of guests still book at the higher price; **14 % walk away** "
+    "and the hotel loses those reservations and their downstream variable costs."
+)
+
+st.markdown("**Why the ML page shows fewer retained bookings than the Prophet page**")
+st.markdown(
+    "On this page (LightGBM) the **average ΔP / P across all demo bookings "
+    "is around +30 %**, vs roughly **+20 % on the Prophet page**. Same "
+    "elasticity (η = −0.7), bigger price uplift → bigger demand haircut:\n\n"
+    "- Prophet's average retention ≈ **0.82** (~82 % of guests book)\n"
+    "- LightGBM's average retention ≈ **0.75** (~75 % of guests book)\n\n"
+    "The **formula is identical**; only the AI's price suggestion differs. "
+    "Which model's prices a real hotel should actually charge is a "
+    "**revenue-vs-volume** trade-off — exactly the conversation the "
+    "comparison tables below help the manager have."
+)
 
 if not bookings_df.empty:
     BLIND_START = pd.Timestamp("2017-07-01")
