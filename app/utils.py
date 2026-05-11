@@ -21,13 +21,21 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.10.1-reorder-blind-test-first"
+APP_BUILD = "v1.11-ml-dashboard"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = PROJECT_ROOT / "models" / "price_model.pkl"
+ML_MODEL_PATH = PROJECT_ROOT / "models" / "price_model_ml.pkl"  # Gradient Boosting
 DB_PATH = PROJECT_ROOT / "data" / "bookings.db"
 HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
+ML_BLIND_TEST_CSV = PROJECT_ROOT / "data" / "blind_test_predictions_ml.csv"
+ML_FORECAST_CSV = PROJECT_ROOT / "data" / "forecast_ml.csv"
+
+# Origin date used by the ML model's `days_since_start` feature. Must match
+# scripts/04_train_ml_model.py — changing it here without retraining would
+# silently produce wrong predictions.
+ML_TRAIN_ORIGIN = pd.Timestamp("2015-07-01")
 
 # Last day the model has actually seen during training. Anything after
 # this is extrapolation. Hard-coded because the dataset is fixed.
@@ -552,3 +560,122 @@ def revenue_per_day(df: pd.DataFrame) -> pd.DataFrame:
 
     out = pd.DataFrame(rows)
     return out.groupby("date", as_index=False)["revenue"].sum().sort_values("date")
+
+
+# --- Machine-learning model (Gradient Boosting) ----------------------------
+
+@st.cache_resource(show_spinner="Loading the ML pricing model...")
+def load_ml_model():
+    """Load the sklearn GradientBoostingRegressor. Cached for the session."""
+    with open(ML_MODEL_PATH, "rb") as f:
+        return pickle.load(f)
+
+
+def _ml_date_features(dates) -> pd.DataFrame:
+    """Feature matrix for the ML model. Must exactly mirror the columns
+    that scripts/04_train_ml_model.py uses during training, in the same
+    order — sklearn matches features positionally."""
+    dates = pd.Series(pd.to_datetime(dates)).reset_index(drop=True)
+    return pd.DataFrame({
+        "year":              dates.dt.year,
+        "month":             dates.dt.month,
+        "day_of_month":      dates.dt.day,
+        "day_of_week":       dates.dt.dayofweek,
+        "day_of_year":       dates.dt.dayofyear,
+        "week_of_year":      dates.dt.isocalendar().week.astype(int),
+        "is_weekend":        (dates.dt.dayofweek >= 5).astype(int),
+        "days_since_start":  (dates - ML_TRAIN_ORIGIN).dt.days.astype(int),
+    })
+
+
+@st.cache_data(show_spinner=False)
+def predict_prices_ml(check_in: date, check_out: date) -> pd.DataFrame:
+    """ML equivalent of predict_prices(). Returns one row per stay night
+    with columns (ds, yhat) in the same shape Prophet uses."""
+    model = load_ml_model()
+    nights = pd.date_range(
+        start=pd.Timestamp(check_in),
+        end=pd.Timestamp(check_out) - pd.Timedelta(days=1),
+        freq="D",
+    )
+    if len(nights) == 0:
+        return pd.DataFrame(columns=["ds", "yhat"])
+    X = _ml_date_features(nights)
+    yhat = model.predict(X)
+    return pd.DataFrame({"ds": nights, "yhat": yhat})
+
+
+def compute_naive_kpis_ml(bookings_df: pd.DataFrame) -> dict:
+    """Same shape as compute_kpis(), but each booking is re-priced
+    using the ML model instead of the Prophet-seeded total_price."""
+    if bookings_df.empty:
+        return _empty_kpi_dict()
+
+    model = load_ml_model()
+    total_revenue = 0.0
+    total_room_nights = 0
+
+    for _, b in bookings_df.iterrows():
+        multiplier = ROOM_TYPES[b["room_type"]]
+        nights = pd.date_range(
+            b["check_in"], b["check_out"] - pd.Timedelta(days=1), freq="D"
+        )
+        if len(nights) == 0:
+            continue
+        X = _ml_date_features(nights)
+        per_night = model.predict(X) * multiplier
+        total_revenue += float(per_night.sum())
+        total_room_nights += len(nights)
+
+    window_days = max(
+        (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
+    )
+    return _kpi_dict(
+        int(len(bookings_df)), total_room_nights, total_revenue, window_days
+    )
+
+
+def compute_elasticity_adjusted_kpis_ml(
+    bookings_df: pd.DataFrame,
+    elasticity: float = PRICE_ELASTICITY,
+) -> dict:
+    """Elasticity-adjusted KPIs using the ML model's per-booking prices
+    in place of Prophet's. Mirror of compute_elasticity_adjusted_kpis."""
+    if bookings_df.empty:
+        return _empty_kpi_dict()
+
+    monthly = {m: historical_monthly_avg(m) for m in range(1, 13)}
+    model = load_ml_model()
+
+    total_revenue = 0.0
+    expected_bookings = 0.0
+    expected_room_nights = 0.0
+
+    for _, b in bookings_df.iterrows():
+        multiplier = ROOM_TYPES[b["room_type"]]
+        nights = pd.date_range(
+            b["check_in"], b["check_out"] - pd.Timedelta(days=1), freq="D"
+        )
+        n_nights = len(nights)
+        if n_nights == 0:
+            continue
+
+        static_price = sum(monthly[d.month] * multiplier for d in nights)
+        X = _ml_date_features(nights)
+        ai_price = float((model.predict(X) * multiplier).sum())
+        if static_price <= 0:
+            continue
+
+        pct_change = (ai_price - static_price) / static_price
+        retention = min(1.0, max(0.0, 1.0 + elasticity * pct_change))
+
+        total_revenue += retention * ai_price
+        expected_bookings += retention
+        expected_room_nights += retention * n_nights
+
+    window_days = max(
+        (bookings_df["check_out"].max() - bookings_df["check_in"].min()).days, 1
+    )
+    return _kpi_dict(
+        expected_bookings, expected_room_nights, total_revenue, window_days
+    )

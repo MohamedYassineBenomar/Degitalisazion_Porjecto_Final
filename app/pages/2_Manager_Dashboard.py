@@ -341,7 +341,10 @@ if not st.session_state.manager_authed:
         """,
         unsafe_allow_html=True,
     )
-    pwd = st.text_input("Password", type="password", placeholder="admin123")
+    pwd = st.text_input(
+        "Password", type="password",
+        value=DEMO_PASSWORD,  # pre-filled for demo convenience
+    )
     if st.button("Sign in", type="primary"):
         if pwd == DEMO_PASSWORD:
             st.session_state.manager_authed = True

@@ -1,9 +1,10 @@
 venv/
 __pycache__/
 *.pkl
-# The trained production model IS shipped with the repo so the
-# Streamlit Cloud build has it on disk at boot. The pattern above
+# The trained production models ARE shipped with the repo so the
+# Streamlit Cloud build has them on disk at boot. The pattern above
 # still ignores any other .pkl that shows up in the project.
 !models/price_model.pkl
+!models/price_model_ml.pkl
 bookings.db
 .DS_Store
