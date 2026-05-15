@@ -88,13 +88,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Value-proposition infographic: shows the cost of OTA commissions vs the
-# uplift HotelMar's direct-booking AI delivers. Built by
-# scripts/05_render_infographics.py — regenerate after copy/numbers change.
-_value_prop_png = DOCS_DIR / "infographic_value_prop.png"
-if _value_prop_png.exists():
-    st.image(str(_value_prop_png), use_container_width=True)
-
 # ---------------------------------------------------------------------------
 # Welcome content + quick links
 # ---------------------------------------------------------------------------
