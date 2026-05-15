@@ -116,7 +116,9 @@ with right:
     st.markdown("### Get started")
     st.info(
         "Use **Book Your Stay** in the sidebar to pick your dates and see "
-        "the AI-recommended price for your room."
+        "the AI-recommended price for your room. "
+        "Hotel staff: **Manager Dashboard** (Prophet) and **ML Dashboard** "
+        "(LightGBM) for the analytics views — password `admin123`."
     )
     st.markdown(
         """
@@ -133,5 +135,8 @@ with right:
 
 st.caption(
     "MVP demo — final project for the Digitalization course. "
-    "AI pricing powered by Meta's Prophet model trained on 2+ years of historic ADR data."
+    "AI pricing powered by **two parallel models** (Meta's Prophet + Microsoft's "
+    "LightGBM with Fourier seasonality features) trained on 2+ years of historic "
+    "ADR data, with an explicit price-elasticity layer (η = −0.7) on every "
+    "'with AI' KPI."
 )
