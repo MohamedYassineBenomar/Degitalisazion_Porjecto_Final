@@ -1,4 +1,4 @@
-# HotelMar — Q&A Prep
+# AlgarveMar — Q&A Prep
 
 Ten likely jury questions, with answers tuned for one calm paragraph
 each. Practise saying each one out loud once.
@@ -149,7 +149,7 @@ risk profile workable.
 
 ### 8. Why didn't you build IoT, CRM, and digital check-in too?
 
-**Deliberate scoping.** The full digital transformation of HotelMar
+**Deliberate scoping.** The full digital transformation of AlgarveMar
 is a multi-phase programme described in the project document — IoT
 energy management, CRM/loyalty, digital check-in kiosks, predictive
 maintenance — and the MVP picks **the single highest-ROI item** to
@@ -190,7 +190,7 @@ away** at the higher prices. Importantly, those vanished guests
 to **€275 K (−€61 K)**. Combine that with a small **+€12 K** revenue
 gain and we get **+€73 K of gross profit on the demo** (+8.4 % at
 the bottom line), of which **most of the value is actually the cost
-discipline, not the price uplift**. **Annualised to HotelMar's full
+discipline, not the price uplift**. **Annualised to AlgarveMar's full
 €6.2 M / 365-day operation** (the demo represents about 1/5 of
 annual revenue, scaling factor ≈ 5×) that's roughly
 **€370 K/year of additional gross profit**. **Layered with the

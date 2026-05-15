@@ -1,5 +1,5 @@
 """
-Shared helpers for the HotelMar Streamlit app.
+Shared helpers for the AlgarveMar Streamlit app.
 
 Anything that touches the model or the database lives here so the
 page files stay focused on UI.
@@ -21,7 +21,7 @@ import streamlit as st
 # revision is live; also forces a full container restart on bump
 # (Cloud sometimes hot-reloads page files without re-importing
 # sibling modules like this one, leaving stale symbol tables behind).
-APP_BUILD = "v1.15-infographics"
+APP_BUILD = "v1.16-algarvemar-rebrand"
 
 # The app folder is one level below the project root, so go up once.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -62,7 +62,7 @@ ROOM_TYPES: dict[str, float] = {
 # "neutral" and don't shift the price. Step 4 will make it dynamic.
 BASELINE_OCCUPANCY = 0.65
 
-# What HotelMar used to charge per night with the old "static seasonal
+# What AlgarveMar used to charge per night with the old "static seasonal
 # pricing" rulebook — the baseline we compare AI suggestions against.
 OLD_STATIC_PRICE = 110.0
 
@@ -514,7 +514,7 @@ def compute_static_baseline_kpis(bookings_df: pd.DataFrame) -> dict:
     The rulebook charges one flat rate per calendar month — the
     historical average ADR for that month. Demand is held constant
     (same 2,494 reservations), so this is a counterfactual: 'what
-    would these same bookings have brought in if HotelMar had stayed
+    would these same bookings have brought in if AlgarveMar had stayed
     on the old rulebook instead of switching to AI?'
     """
     if bookings_df.empty:

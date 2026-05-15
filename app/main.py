@@ -1,5 +1,5 @@
 """
-HotelMar — Streamlit entry point.
+AlgarveMar — Streamlit entry point.
 
 Streamlit auto-discovers any *.py file inside `app/pages/` and turns it
 into a navigable page in the sidebar. This file is the landing page
@@ -20,7 +20,7 @@ DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 # Page config (must be the first Streamlit call on the page).
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="HotelMar — Sitges",
+    page_title="AlgarveMar — Albufeira",
     page_icon="🌊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -80,9 +80,9 @@ st.markdown(
 st.markdown(
     """
     <div class="hm-hero">
-        <span class="hm-tag">★★★★ · SITGES, SPAIN</span>
-        <h1>🌊 HotelMar</h1>
-        <p>A Mediterranean stay, priced fairly by AI — every day, every room.</p>
+        <span class="hm-tag">★★★★ · ALBUFEIRA, PORTUGAL</span>
+        <h1>🌊 AlgarveMar</h1>
+        <p>An Algarve stay, priced fairly by AI — every day, every room.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -96,8 +96,8 @@ left, right = st.columns([2, 1])
 with left:
     st.markdown("### Welcome aboard")
     st.write(
-        "HotelMar is a 4-star, 150-room hotel right on the seafront in "
-        "**Sitges, Spain**. Book directly with us and skip the third-party "
+        "AlgarveMar is a 4-star, 150-room hotel right on the seafront in "
+        "**Albufeira (Algarve, Portugal)**. Book directly with us and skip the third-party "
         "fees — our prices are set every day by an AI model that learns "
         "from real demand patterns, so you always see a fair rate."
     )

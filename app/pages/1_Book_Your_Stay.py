@@ -33,7 +33,7 @@ from utils import (  # noqa: E402  (import after sys.path tweak)
 # ---------------------------------------------------------------------------
 # Page config + reuse the same brand styling as the landing page.
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Book your stay — HotelMar", page_icon="🌊", layout="wide")
+st.set_page_config(page_title="Book your stay — AlgarveMar", page_icon="🌊", layout="wide")
 
 st.markdown(
     """
@@ -96,7 +96,7 @@ st.markdown(
     """
     <div class="hm-hero">
         <h1>Book your stay</h1>
-        <p>4-star sea-view hotel in Sitges · AI-recommended pricing · no booking fees</p>
+        <p>4-star sea-view hotel in Albufeira · AI-recommended pricing · no booking fees</p>
     </div>
     """,
     unsafe_allow_html=True,

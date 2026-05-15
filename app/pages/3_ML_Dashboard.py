@@ -66,7 +66,7 @@ def diff_cell(static_v: float, ai_v: float, fmt: str, mode: str = "default") -> 
     return f'<td class="diff-cell {cls}">{sign}{body}</td>'
 
 
-st.set_page_config(page_title="ML Manager — HotelMar", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="ML Manager — AlgarveMar", page_icon="🤖", layout="wide")
 
 st.markdown(
     """
@@ -190,7 +190,7 @@ with st.sidebar:
         """
         <div class="hm-logo">
             <span class="wave">🤖</span>
-            <div class="name">HotelMar</div>
+            <div class="name">AlgarveMar</div>
             <div class="role">ML · Manager Console</div>
         </div>
         """,
@@ -396,7 +396,7 @@ st.markdown(
     "a quantity drop. The size of η tells you *how sensitive* the market is."
 )
 
-st.markdown("**Step 2 — The value we use for HotelMar**")
+st.markdown("**Step 2 — The value we use for AlgarveMar**")
 st.latex(r"\eta \;=\; -0.7 \quad \text{(4-star mid-range hotel, industry literature)}")
 st.markdown(
     "Empirical studies report elasticity between **−0.4 and −0.8** for "

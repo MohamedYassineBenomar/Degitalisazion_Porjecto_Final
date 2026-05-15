@@ -1,4 +1,4 @@
-# HotelMar — 5-Minute Demo Script
+# AlgarveMar — 5-Minute Demo Script
 
 > Live URL: <https://degitalisazionporjectofinal-jbqw9jfbm45spzoaf9dqep.streamlit.app/>
 > Manager password: `admin123`
@@ -18,15 +18,15 @@
 **You click:** show the landing page (first browser tab).
 
 **On screen:**
-- Navy/sea gradient hero with "🌊 HotelMar — A Mediterranean stay,
+- Navy/sea gradient hero with "🌊 AlgarveMar — An Algarve stay,
   priced fairly by AI"
-- "★★★★ · SITGES, SPAIN" badge
+- "★★★★ · ALBUFEIRA, PORTUGAL" badge
 - "Welcome aboard" copy + "Why book direct" card listing
   *No commissions · Best-rate guarantee · Smart pricing*
 
 **You say (~30 seconds):**
 
-> "HotelMar is a 4-star, 150-room hotel in Sitges. It runs €6.2 million
+> "AlgarveMar is a 4-star, 150-room hotel in Albufeira. It runs €6.2 million
 > a year — a healthy business — but it has two structural problems.
 > First, **75 % of its bookings come through Booking.com**, which
 > charges roughly 15 % commission. That's **€180,000 a year** going to
@@ -54,7 +54,7 @@
 **You say (~20 seconds):**
 
 > "A guest lands on our site, picks dates — let's say a long weekend
-> in Sitges, Friday the 22nd to Monday the 25th of September 2017.
+> in Albufeira, Friday the 22nd to Monday the 25th of September 2017.
 > Standard Sea View room, two guests. The booking date range is
 > deliberately pinned to 2017 — I'll explain why in a moment. Click
 > **Check Price**."
@@ -119,7 +119,7 @@
 **You click:** sidebar → **Manager Dashboard**.
 
 **On screen:**
-- Sidebar shows the navy "HotelMar / Manager Console" logo card
+- Sidebar shows the navy "AlgarveMar / Manager Console" logo card
 - Lock-icon hero: "🔒 Manager sign-in"
 - Password field
 - Caption: "DEMO ONLY: the password is hard-coded in the source.
@@ -172,7 +172,7 @@
 **You say (~25 seconds):**
 
 > "Below is what the model has learned. Each summer peak sits **above
-> €200**, each winter trough drops below €60 — that's the Mediterranean
+> €200**, each winter trough drops below €60 — that's the Algarve
 > seasonal cycle. The orange line on the right is the **forward
 > forecast**: the rate the manager can use for **strategic capacity
 > planning, group bookings, OTA contract negotiations**. The shaded
@@ -220,13 +220,13 @@ View / 368.25 / [today's timestamp]`.
 
 **Point at:** the bar chart.
 
-**On screen:** ~152 bars in HotelMar sea-blue, peaking in summer,
+**On screen:** ~152 bars in AlgarveMar sea-blue, peaking in summer,
 falling toward autumn.
 
 **You say (~10 seconds):**
 
 > "Bottom of the page: revenue per stay-night across the booked window —
-> the same Mediterranean seasonal shape, expressed in money."
+> the same Algarve seasonal shape, expressed in money."
 
 ---
 
@@ -237,7 +237,7 @@ the landing tab.
 
 **You say (~60 seconds, the close):**
 
-> "So what does this MVP buy HotelMar in a year?
+> "So what does this MVP buy AlgarveMar in a year?
 >
 > First, **AI pricing**. Industry benchmarks for revenue-management
 > systems land between **15 and 25 % RevPAR uplift**. We'll model 22 %.
@@ -262,7 +262,7 @@ the landing tab.
 > for this volume of data and this audience that's a deliberate choice,
 > and I'm happy to defend it.
 >
-> That's HotelMar. Thank you — happy to take questions."
+> That's AlgarveMar. Thank you — happy to take questions."
 
 ---
 

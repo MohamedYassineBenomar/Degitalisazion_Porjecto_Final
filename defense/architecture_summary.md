@@ -1,4 +1,4 @@
-# HotelMar — Architecture Summary
+# AlgarveMar — Architecture Summary
 
 A one-page map of the **cloud → fog → edge → mist** digital architecture
 described in the project document, and which parts the MVP actually

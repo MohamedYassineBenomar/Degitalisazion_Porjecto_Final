@@ -84,7 +84,7 @@ def diff_cell(static_v: float, ai_v: float, fmt: str, mode: str = "default") -> 
 # ---------------------------------------------------------------------------
 # Page config + shared brand styles (kept consistent with the guest page).
 # ---------------------------------------------------------------------------
-st.set_page_config(page_title="Manager — HotelMar", page_icon="🌊", layout="wide")
+st.set_page_config(page_title="Manager — AlgarveMar", page_icon="🌊", layout="wide")
 
 st.markdown(
     """
@@ -310,7 +310,7 @@ with st.sidebar:
         """
         <div class="hm-logo">
             <span class="wave">🌊</span>
-            <div class="name">HotelMar</div>
+            <div class="name">AlgarveMar</div>
             <div class="role">Manager Console</div>
         </div>
         """,
@@ -389,7 +389,7 @@ st.subheader(f"AI Recommendation for {DEMO_DATE.strftime('%A %d %B %Y')}")
 today_pred = predict_prices(DEMO_DATE, DEMO_DATE + timedelta(days=1))
 ai_price = float(today_pred["yhat"].iloc[0]) if not today_pred.empty else 0.0
 
-# Honest baseline: what HotelMar would have charged under the old
+# Honest baseline: what AlgarveMar would have charged under the old
 # rulebook for ANY day in this month (averaged across historical years).
 baseline = historical_monthly_avg(DEMO_DATE.month)
 month_name = DEMO_DATE.strftime("%B")
@@ -756,7 +756,7 @@ st.markdown(
             </li>
             <li>
                 <span class="hm-swatch dashed" style="color:#7f8c8d;"></span>
-                <b>Static rulebook (without AI)</b> — what HotelMar charged
+                <b>Static rulebook (without AI)</b> — what AlgarveMar charged
                 under the old approach: <i>one flat rate per calendar month</i>,
                 set to the historical average for that month. Notice it stays
                 flat for ~30 days at a time, then jumps at the next month —
@@ -913,7 +913,7 @@ else:
                 152-day demo window ({real_profit_pct:+.1f}% over static)
             </div>
             <div class="pb-annual">
-                Scaled to HotelMar's full €6.2M operation:
+                Scaled to AlgarveMar's full €6.2M operation:
                 <b>~€{annual_profit_lift/1000:,.0f}K/year additional gross profit</b>
                 (annualization factor ≈ {annual_scale:.1f}×).
             </div>

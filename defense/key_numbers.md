@@ -1,4 +1,4 @@
-# HotelMar — Key Numbers Cheat Sheet
+# AlgarveMar — Key Numbers Cheat Sheet
 
 > Glance at this **one minute before walking in**. Everything you need
 > to recall under pressure is here.

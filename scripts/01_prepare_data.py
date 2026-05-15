@@ -1,5 +1,5 @@
 """
-Step 1 — Data preparation pipeline for HotelMar.
+Step 1 — Data preparation pipeline for AlgarveMar.
 
 Reads the raw Kaggle Hotel Booking Demand CSV, keeps only Resort Hotel
 non-cancelled bookings, builds a clean daily price series (one row per

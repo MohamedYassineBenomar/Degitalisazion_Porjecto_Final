@@ -11,7 +11,7 @@ Generates three PNG infographics in docs/:
   - docs/infographic_elasticity.png    price-elasticity demand curve
         for the ML dashboard maths section
 
-Pure matplotlib + HotelMar brand palette — deterministic, regenerable.
+Pure matplotlib + AlgarveMar brand palette — deterministic, regenerable.
 Run from the project root:
     python scripts/05_render_infographics.py
 """
@@ -31,7 +31,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DOCS = PROJECT_ROOT / "docs"
 DOCS.mkdir(parents=True, exist_ok=True)
 
-# HotelMar brand palette (matches app/main.py CSS + dashboards).
+# AlgarveMar brand palette (matches app/main.py CSS + dashboards).
 NAVY = "#0a3d62"
 SEA = "#3c91b3"
 SKY = "#d9eef7"
@@ -117,7 +117,7 @@ def render_value_prop():
 
     # --- RIGHT: The Outcome -----------------------------------------------
     _card(ax, 9.7, 0.4, 4.0, 3.4, fill=WHITE, edge="#c8e8d0", lw=1.5, radius=0.15)
-    ax.text(11.7, 3.5, "With HotelMar AI", ha="center", va="center",
+    ax.text(11.7, 3.5, "With AlgarveMar AI", ha="center", va="center",
             fontsize=11, color=UP, fontweight="bold")
     ax.text(11.7, 2.95, "+€370K", ha="center", va="center",
             fontsize=46, color=UP, fontweight="bold")
@@ -208,7 +208,7 @@ def render_pipeline():
     ax.add_patch(mpatches.Rectangle((0, 0), 14, 3.6, color=WHITE, zorder=-2))
 
     # Title.
-    ax.text(7, 3.25, "How HotelMar's AI pricing works",
+    ax.text(7, 3.25, "How AlgarveMar's AI pricing works",
             ha="center", va="center", fontsize=15,
             color=NAVY, fontweight="bold")
 
@@ -308,7 +308,7 @@ def render_elasticity():
 
     ax.set_title(
         "Price elasticity of demand  —  why higher prices lose bookings\n"
-        f"HotelMar's assumption: η = {elasticity} (4-star mid-range hotel)",
+        f"AlgarveMar's assumption: η = {elasticity} (4-star mid-range hotel)",
         fontsize=13, color=NAVY, fontweight="bold", pad=14,
     )
 
@@ -323,7 +323,7 @@ def render_elasticity():
 
 
 def main():
-    print("Rendering HotelMar infographics ...")
+    print("Rendering AlgarveMar infographics ...")
     render_value_prop()
     render_pipeline()
     render_elasticity()

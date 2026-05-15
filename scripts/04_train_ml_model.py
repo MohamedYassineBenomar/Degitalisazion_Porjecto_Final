@@ -288,7 +288,7 @@ def main() -> None:
     ax.fill_between(future_dates, yhat_future - prod_bound,
                     yhat_future + prod_bound, color="#8e44ad", alpha=0.15,
                     label="~80% interval")
-    ax.set_title("HotelMar — LightGBM + Fourier daily ADR forecast (history + 90 days)")
+    ax.set_title("AlgarveMar — LightGBM + Fourier daily ADR forecast (history + 90 days)")
     ax.set_xlabel("Date")
     ax.set_ylabel("Price (EUR)")
     ax.legend(loc="upper left")

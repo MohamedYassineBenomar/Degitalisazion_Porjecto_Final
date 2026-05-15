@@ -186,7 +186,7 @@ def main() -> None:
     print(f"  forecast saved-> {FORECAST_CSV}")
 
     fig = prod_model.plot(forecast)
-    plt.title("HotelMar — daily ADR forecast (history + 90 days ahead)")
+    plt.title("AlgarveMar — daily ADR forecast (history + 90 days ahead)")
     plt.xlabel("Date")
     plt.ylabel("Price (EUR)")
     fig.tight_layout()

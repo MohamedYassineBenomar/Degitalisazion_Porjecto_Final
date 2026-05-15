@@ -1,14 +1,14 @@
-# HotelMar — AI-Powered Direct Booking & Dynamic Pricing
+# AlgarveMar — AI-Powered Direct Booking & Dynamic Pricing
 
 > 🌊 **Live demo:** **<https://degitalisazionporjectofinal-jbqw9jfbm45spzoaf9dqep.streamlit.app/>**
 
-Final project for the Digitalization course. Current build: **`v1.14-elasticity-math-block`**.
+Final project for the Digitalization course. Current build: **`v1.15-infographics`**.
 
-![HotelMar landing page](docs/landing.png)
+![AlgarveMar landing page](docs/landing.png)
 
 ## What this is
 
-HotelMar is a 4-star, 150-room hotel in Sitges (Spain). Today, ~75 % of its
+AlgarveMar is a 4-star, 150-room beach resort in Albufeira (Algarve, Portugal). Today, ~75 % of its
 bookings come through Booking.com, costing roughly €180,000/year in
 commissions. Static seasonal pricing also leaves money on the table.
 
@@ -78,8 +78,9 @@ can see the difference in the per-night breakdown.
 
 Source: Kaggle "Hotel Booking Demand" dataset (~119k bookings, two
 Portuguese hotels). We use only the **Resort Hotel** rows and exclude
-cancellations — the closest available analogue for a Mediterranean
-Spanish 4-star resort. The price column is `adr` (Average Daily Rate).
+cancellations — a direct match for an Algarve 4-star resort
+(the resort hotel in the dataset is itself based in Algarve).
+The price column is `adr` (Average Daily Rate).
 
 Pipeline (in `scripts/01_prepare_data.py`):
 
