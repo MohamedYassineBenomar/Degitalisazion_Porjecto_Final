@@ -8,9 +8,13 @@ shown by default when the user runs:
     streamlit run app/main.py
 """
 
+from pathlib import Path
+
 import streamlit as st
 
 from utils import init_db
+
+DOCS_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 # ---------------------------------------------------------------------------
 # Page config (must be the first Streamlit call on the page).
@@ -84,6 +88,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Value-proposition infographic: shows the cost of OTA commissions vs the
+# uplift HotelMar's direct-booking AI delivers. Built by
+# scripts/05_render_infographics.py — regenerate after copy/numbers change.
+_value_prop_png = DOCS_DIR / "infographic_value_prop.png"
+if _value_prop_png.exists():
+    st.image(str(_value_prop_png), use_container_width=True)
+
 # ---------------------------------------------------------------------------
 # Welcome content + quick links
 # ---------------------------------------------------------------------------
@@ -132,6 +143,11 @@ with right:
         """,
         unsafe_allow_html=True,
     )
+
+st.markdown("### How it works")
+_pipeline_png = DOCS_DIR / "infographic_pipeline.png"
+if _pipeline_png.exists():
+    st.image(str(_pipeline_png), use_container_width=True)
 
 st.caption(
     "MVP demo — final project for the Digitalization course. "
