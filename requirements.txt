@@ -3,7 +3,7 @@
 # these requires re-testing on Cloud — Prophet in particular is
 # sensitive to numpy/pandas major-version changes.
 #
-# build: v1.16-algarvemar-rebrand
+# build: v1.17-pipeline-on-signin
 streamlit==1.57.0
 prophet==1.3.0
 pandas==3.0.2

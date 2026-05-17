@@ -44,6 +44,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 FORECAST_CSV = PROJECT_ROOT / "data" / "forecast.csv"
 HISTORY_CSV = PROJECT_ROOT / "data" / "daily_prices.csv"
 BLIND_TEST_CSV = PROJECT_ROOT / "data" / "blind_test_predictions.csv"
+PIPELINE_INFOGRAPHIC = PROJECT_ROOT / "docs" / "infographic_pipeline.png"
 
 
 # ---------------------------------------------------------------------------
@@ -355,6 +356,14 @@ if not st.session_state.manager_authed:
         "A production deployment must use a proper auth backend "
         "(OIDC/SSO, Auth0, or Streamlit's built-in auth)."
     )
+
+    # "How it works" infographic — shown on the sign-in screen so the
+    # jury / first-time visitor sees the 4-step pipeline before they
+    # log in to the actual dashboard.
+    st.markdown("### How it works")
+    if PIPELINE_INFOGRAPHIC.exists():
+        st.image(str(PIPELINE_INFOGRAPHIC), use_container_width=True)
+
     st.stop()
 
 
